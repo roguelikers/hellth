@@ -1,0 +1,13 @@
+({
+    "atlas": TextureAtlas(
+        path: "colored_packed.png",
+        tile_size_x: 16.,
+        tile_size_y: 16.,
+        columns: 49,
+        rows: 22,
+        padding_x: 0.,
+        padding_y: 0.,
+        offset_x: 0.,
+        offset_y: 0.,
+    )
+})
