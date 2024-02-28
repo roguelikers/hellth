@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
 
-use self::{grid::SvarogGridPlugin, loading::SvarogLoadingPlugin, window::SvarogWindowPlugins};
+use self::{
+    anim::SvarogAnimationPlugin, grid::SvarogGridPlugin, loading::SvarogLoadingPlugin,
+    window::SvarogWindowPlugins,
+};
 
+pub mod anim;
 pub mod grid;
 pub mod loading;
 pub mod window;
@@ -35,6 +39,7 @@ impl Plugin for SvarogGamePlugin {
         bevy.add_plugins(SvarogWindowPlugins)
             .add_plugins(SvarogLoadingPlugin)
             .add_plugins(SvarogGridPlugin)
+            .add_plugins(SvarogAnimationPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }
 }

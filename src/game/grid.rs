@@ -1,10 +1,10 @@
 use bevy::{
-    app::{Plugin, Update},
+    app::Plugin,
     asset::Handle,
     ecs::{
         entity::Entity,
-        schedule::{common_conditions::in_state, IntoSystemConfigs, NextState, OnEnter, OnExit},
-        system::{Commands, Query, Res, ResMut, Resource},
+        schedule::{NextState, OnEnter, OnExit},
+        system::{Commands, Res, ResMut, Resource},
     },
     math::{IVec2, Vec3},
     sprite::{SpriteSheetBundle, TextureAtlas, TextureAtlasSprite},
@@ -12,6 +12,7 @@ use bevy::{
     utils::HashMap,
 };
 use bevy_rand::{prelude::WyRand, resource::GlobalEntropy};
+
 use rand_core::RngCore;
 
 use crate::game::{GameAssets, GameStates};
@@ -45,9 +46,9 @@ impl Grid {
     }
 }
 
-fn make_grid(mut commands: Commands, assets: Res<GameAssets>) {
+fn create_grid_resource(mut commands: Commands, assets: Res<GameAssets>) {
     commands.insert_resource(Grid {
-        size: IVec2::new(140, 70),
+        size: IVec2::new(120, 62),
         tile: IVec2::new(16, 16),
         atlas: assets.atlas.clone_weak(),
         entities: Default::default(),
@@ -63,12 +64,13 @@ fn initialize_grid(
     let size = grid.size;
     for i in (0..=size.y as usize).rev() {
         for j in 0..=size.x as usize {
+            let ground = if rng.next_u32() % 100 > 20 {
+                0usize
+            } else {
+                (((rng.next_u32() % 2) * 49) + (rng.next_u32() % 8)) as usize
+            };
             let position = IVec2::new(j as i32 - grid.size.x / 2, i as i32 - grid.size.y / 2);
-            let spawned = grid.spawn(
-                &mut commands,
-                (rng.next_u32() % (49 * 22)) as usize,
-                position,
-            );
+            let spawned = grid.spawn(&mut commands, ground, position);
             grid.entities.insert(position, spawned);
         }
     }
@@ -76,8 +78,9 @@ fn initialize_grid(
     next_state.set(GameStates::Game);
 }
 
-fn update_grid_randomly(
-    grid: ResMut<Grid>,
+#[cfg(feature = "debug_mode")]
+fn debug_update_grid_randomly(
+    grid: Res<Grid>,
     mut sprites: Query<&mut TextureAtlasSprite>,
     mut rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
@@ -101,11 +104,13 @@ pub struct SvarogGridPlugin;
 
 impl Plugin for SvarogGridPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
-        bevy.add_systems(OnExit(GameStates::AssetLoading), make_grid)
-            .add_systems(OnEnter(GameStates::Setup), initialize_grid)
-            .add_systems(
-                Update,
-                update_grid_randomly.run_if(in_state(GameStates::Game)),
-            );
+        bevy.add_systems(OnExit(GameStates::AssetLoading), create_grid_resource)
+            .add_systems(OnEnter(GameStates::Setup), initialize_grid);
+
+        #[cfg(feature = "debug_mode")]
+        bevy.add_systems(
+            Update,
+            debug_update_grid_randomly.run_if(in_state(GameStates::Game)),
+        );
     }
 }

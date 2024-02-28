@@ -56,7 +56,7 @@ pub fn setup_fps_counter(mut commands: Commands) {
             },
         ))
         .id();
-    // create our text
+
     let text_fps = commands
         .spawn((
             FpsText,
