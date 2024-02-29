@@ -27,7 +27,6 @@ use bevy::prelude::*;
 use bevy::diagnostic::DiagnosticsStore;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy_mod_picking::DefaultPickingPlugins;
-use bevy_rand::{plugin::EntropyPlugin, prelude::WyRand};
 use winit::window::Icon;
 
 #[derive(Component)]
@@ -141,7 +140,6 @@ impl Plugin for SvarogWindowPlugins {
                     ..Default::default()
                 }),
             FrameTimeDiagnosticsPlugin,
-            EntropyPlugin::<WyRand>::default(),
         ))
         .add_plugins(DefaultPickingPlugins)
         .add_systems(Startup, (set_window_icon, setup_fps_counter))

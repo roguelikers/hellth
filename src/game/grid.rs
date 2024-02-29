@@ -11,11 +11,18 @@ use bevy::{
     transform::components::Transform,
     utils::HashMap,
 };
-use bevy_rand::{prelude::WyRand, resource::GlobalEntropy};
-
-use rand_core::RngCore;
 
 use crate::game::{GameAssets, GameStates};
+
+#[cfg(feature = "debug_mode")]
+use bevy::{
+    app::Update,
+    ecs::schedule::{common_conditions::in_state, IntoSystemConfigs},
+    system::Query,
+};
+
+#[cfg(feature = "debug_mode")]
+use super::feel::Random;
 
 #[derive(Resource)]
 pub struct Grid {
@@ -59,18 +66,12 @@ fn initialize_grid(
     mut commands: Commands,
     mut grid: ResMut<Grid>,
     mut next_state: ResMut<NextState<GameStates>>,
-    mut rng: ResMut<GlobalEntropy<WyRand>>,
 ) {
     let size = grid.size;
     for i in (0..=size.y as usize).rev() {
         for j in 0..=size.x as usize {
-            let ground = if rng.next_u32() % 100 > 20 {
-                0usize
-            } else {
-                (((rng.next_u32() % 2) * 49) + (rng.next_u32() % 8)) as usize
-            };
             let position = IVec2::new(j as i32 - grid.size.x / 2, i as i32 - grid.size.y / 2);
-            let spawned = grid.spawn(&mut commands, ground, position);
+            let spawned = grid.spawn(&mut commands, 0, position);
             grid.entities.insert(position, spawned);
         }
     }
@@ -82,7 +83,7 @@ fn initialize_grid(
 fn debug_update_grid_randomly(
     grid: Res<Grid>,
     mut sprites: Query<&mut TextureAtlasSprite>,
-    mut rng: ResMut<GlobalEntropy<WyRand>>,
+    mut rng: ResMut<Random>,
 ) {
     let size = grid.size / 2;
     for i in -size.x..=size.x {
@@ -95,7 +96,7 @@ fn debug_update_grid_randomly(
                 continue;
             };
 
-            sprite.index = (rng.next_u32() % (49 * 22)) as usize;
+            sprite.index = rng.gen(0..(49 * 22)) as usize;
         }
     }
 }
