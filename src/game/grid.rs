@@ -2,6 +2,7 @@ use bevy::{
     app::Plugin,
     asset::Handle,
     ecs::{
+        component::Component,
         entity::Entity,
         schedule::{NextState, OnEnter, OnExit},
         system::{Commands, Res, ResMut, Resource},
@@ -32,19 +33,30 @@ pub struct Grid {
     pub entities: HashMap<IVec2, Entity>,
 }
 
+#[derive(Component, Default, Clone, Copy)]
+pub enum Passability {
+    #[default]
+    Passable,
+    Blocking,
+    SeethruBlocking,
+}
+
 impl Grid {
     pub fn spawn(&self, commands: &mut Commands, index: usize, position: IVec2) -> Entity {
         commands
-            .spawn(SpriteSheetBundle {
-                transform: Transform::from_translation(Vec3::new(
-                    (self.tile.x * position.x) as f32,
-                    (self.tile.y * position.y) as f32,
-                    0.0,
-                )),
-                sprite: TextureAtlasSprite::new(index),
-                texture_atlas: self.atlas.clone_weak(),
-                ..Default::default()
-            })
+            .spawn((
+                SpriteSheetBundle {
+                    transform: Transform::from_translation(Vec3::new(
+                        (self.tile.x * position.x) as f32,
+                        (self.tile.y * position.y) as f32,
+                        0.0,
+                    )),
+                    sprite: TextureAtlasSprite::new(index),
+                    texture_atlas: self.atlas.clone_weak(),
+                    ..Default::default()
+                },
+                Passability::Passable,
+            ))
             .id()
     }
 
@@ -108,10 +120,10 @@ impl Plugin for SvarogGridPlugin {
         bevy.add_systems(OnExit(GameStates::AssetLoading), create_grid_resource)
             .add_systems(OnEnter(GameStates::Setup), initialize_grid);
 
-        #[cfg(feature = "debug_mode")]
-        bevy.add_systems(
-            Update,
-            debug_update_grid_randomly.run_if(in_state(GameStates::Game)),
-        );
+        // #[cfg(feature = "debug_mode")]
+        // bevy.add_systems(
+        //     Update,
+        //     debug_update_grid_randomly.run_if(in_state(GameStates::Game)),
+        // );
     }
 }
