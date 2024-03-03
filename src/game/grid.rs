@@ -91,39 +91,11 @@ fn initialize_grid(
     next_state.set(GameStates::Game);
 }
 
-#[cfg(feature = "debug_mode")]
-fn debug_update_grid_randomly(
-    grid: Res<Grid>,
-    mut sprites: Query<&mut TextureAtlasSprite>,
-    mut rng: ResMut<Random>,
-) {
-    let size = grid.size / 2;
-    for i in -size.x..=size.x {
-        for j in -size.y..=size.y {
-            let Some(e) = grid.get(IVec2::new(i, j)) else {
-                continue;
-            };
-
-            let Ok(mut sprite) = sprites.get_mut(*e) else {
-                continue;
-            };
-
-            sprite.index = rng.gen(0..(49 * 22)) as usize;
-        }
-    }
-}
-
 pub struct SvarogGridPlugin;
 
 impl Plugin for SvarogGridPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
         bevy.add_systems(OnExit(GameStates::AssetLoading), create_grid_resource)
             .add_systems(OnEnter(GameStates::Setup), initialize_grid);
-
-        // #[cfg(feature = "debug_mode")]
-        // bevy.add_systems(
-        //     Update,
-        //     debug_update_grid_randomly.run_if(in_state(GameStates::Game)),
-        // );
     }
 }
