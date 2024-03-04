@@ -139,10 +139,11 @@ impl Plugin for SvarogWindowPlugins {
                     }),
                     ..Default::default()
                 }),
-            FrameTimeDiagnosticsPlugin,
+            //FrameTimeDiagnosticsPlugin,
         ))
-        .add_plugins(DefaultPickingPlugins)
-        .add_systems(Startup, (set_window_icon, setup_fps_counter))
-        .add_systems(Update, (fps_text_update_system, fps_counter_showhide));
+        //.add_plugins(DefaultPickingPlugins)
+        //.add_systems(Startup, (set_window_icon, setup_fps_counter))
+        //.add_systems(Update, (fps_text_update_system, fps_counter_showhide));
+        ;
     }
 }

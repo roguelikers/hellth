@@ -1,8 +1,9 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera::ScalingMode};
 
 use super::{
     grid::{GameEntity, Grid},
     procgen::PlayerMarker,
+    GameStates,
 };
 
 #[derive(Component)]
@@ -75,13 +76,34 @@ pub fn focus_camera(
     }
 }
 
+fn debug_camera(mut camera_query: Query<&mut OrthographicProjection>, keys: Res<Input<KeyCode>>) {
+    for mut projection in &mut camera_query {
+        if let ScalingMode::WindowSize(size) = projection.scaling_mode {
+            let mut new_size = size;
+            if keys.just_pressed(KeyCode::F1) {
+                new_size = 1.0;
+            } else if keys.just_pressed(KeyCode::F2) {
+                new_size = 2.0;
+            } else if keys.just_pressed(KeyCode::F3) {
+                new_size = 3.0;
+            } else if keys.just_pressed(KeyCode::F4) {
+                new_size = 4.0;
+            }
+
+            projection.scaling_mode = ScalingMode::WindowSize(new_size);
+        }
+    }
+}
+
 pub struct SvarogCameraPlugin;
 impl Plugin for SvarogCameraPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
         bevy.insert_resource(CameraSettings {
-            tracking_speed: 150.0,
-            tracking_distance: 100.0,
+            tracking_speed: 128.0,
+            tracking_distance: 160.0,
             stop_tracking_under: 16.0,
-        });
+        })
+        .add_systems(PostUpdate, focus_camera.run_if(in_state(GameStates::Game)))
+        .add_systems(PostUpdate, debug_camera);
     }
 }
