@@ -176,8 +176,8 @@ impl Plugin for SvarogGamePlugin {
                 character_controls.run_if(in_state(GameStates::Game)),
             )
             .add_systems(
-                Last,
-                (focus_camera,).chain().run_if(in_state(GameStates::Game)),
+                PostUpdate,
+                focus_camera.chain().run_if(in_state(GameStates::Game)),
             )
             .add_systems(OnEnter(GameStates::Game), start_game)
             .add_systems(PostUpdate, debug_camera);

@@ -1,6 +1,6 @@
 use bevy::{ecs::system::Command, math::IVec2, sprite::TextureAtlasSprite};
 
-use super::grid::{Grid, Passability, WorldData};
+use super::grid::{Grid, Passability};
 
 pub struct ChangeSprite {
     pub position: IVec2,
