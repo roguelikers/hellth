@@ -32,9 +32,6 @@ pub fn focus_camera(
     >,
     player: Query<&GameEntity, With<PlayerMarker>>,
     grid: Option<Res<Grid>>,
-    // time: Res<Time>,
-    // camera_settings: Res<CameraSettings>,
-    // mut mode: Local<CameraMovingMode>,
 ) {
     let Some(grid) = grid else {
         return;
@@ -49,8 +46,12 @@ pub fn focus_camera(
             .get_tile_position(player_game_entity.position)
             .translation;
 
-        camera_transform.translation.x = target.x;
-        camera_transform.translation.y = target.y;
+        let dist = camera_transform.translation.distance(target);
+
+        if dist > 100.0 {
+            camera_transform.translation.x = target.x;
+            camera_transform.translation.y = target.y;
+        }
 
         // match *mode {
         //     CameraMovingMode::Calm => {
