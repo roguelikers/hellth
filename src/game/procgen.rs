@@ -3,37 +3,57 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use crate::game::sprite::{ChangePassability, ChangeSprite};
+use crate::game::{
+    fov::Sight,
+    grid::GameEntityBundle,
+    sprite::{ChangePassability, ChangeSprite},
+};
 
 use super::{
     feel::Random,
-    grid::{Grid, Passability},
+    fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
+    grid::{GameEntityMarker, Grid, Passability, WorldData},
+    GameStates,
 };
 
 #[derive(Event)]
 pub struct ProcGenEvent;
 
+#[derive(Component)]
+pub struct PlayerMarker;
+
 #[derive(Resource)]
 pub struct MapRadius(pub i32);
 
 #[allow(clippy::identity_op)]
+#[allow(clippy::too_many_arguments)]
 pub fn generate_level(
+    game_entities: Query<Entity, With<GameEntityMarker>>,
     mut commands: Commands,
-    grid: Res<Grid>,
-    mut sprites: Query<(&mut TextureAtlasSprite, &mut Passability)>,
+    mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
+    mut sprites: Query<(&mut TextureAtlasSprite, &mut Passability)>,
+    mut visibility: Query<&mut Visibility>,
+    grid: Res<Grid>,
     radius: Res<MapRadius>,
 ) {
     fn clear_grid(
         grid: &Res<Grid>,
         rng: &mut ResMut<Random>,
+        map: &mut ResMut<WorldData>,
         radius: &Res<MapRadius>,
+        visibility: &mut Query<&mut Visibility>,
         sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
     ) -> HashSet<IVec2> {
         let symbols = [0, 0, 0, 0, 1, 2, 3, 4, 5];
         let mut okay = HashSet::new();
 
+        map.solid.clear();
         grid.entities.iter().for_each(|(pos, e)| {
+            if let Ok(mut vis) = visibility.get_mut(*e) {
+                *vis = Visibility::Hidden;
+            }
+
             if let Ok((mut sprite, mut passable)) = sprites.get_mut(*e) {
                 let dist = pos.distance_squared(IVec2::ZERO);
                 let r = radius.0;
@@ -42,10 +62,20 @@ pub fn generate_level(
                     sprite.color = Color::WHITE;
                     *passable = Passability::Passable;
                     okay.insert(*pos);
+                    map.data.set_transparent(
+                        (pos.x + grid.size.x / 2 + 1) as usize,
+                        (pos.y + grid.size.y / 2 + 1) as usize,
+                        true,
+                    );
                 } else {
                     sprite.index = 4 * 49 + 0;
                     sprite.color = Color::WHITE;
                     *passable = Passability::Blocking;
+                    map.data.set_transparent(
+                        (pos.x + grid.size.x / 2 + 1) as usize,
+                        (pos.y + grid.size.y / 2 + 1) as usize,
+                        false,
+                    );
                 }
             }
         });
@@ -59,6 +89,8 @@ pub fn generate_level(
         count: usize,
         size: IVec2,
         rng: &mut ResMut<Random>,
+        grid: &Res<Grid>,
+        map: &mut ResMut<WorldData>,
         okay: &HashSet<IVec2>,
     ) {
         let forest_tiles = [
@@ -67,7 +99,6 @@ pub fn generate_level(
             1 * 49 + 1,
             1 * 49 + 2,
             1 * 49 + 3,
-            2 * 49 + 0,
             2 * 49 + 3,
         ];
         let ruin_tiles = [
@@ -87,7 +118,7 @@ pub fn generate_level(
             let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
 
             let (tiles, passability) = if rng.coin() {
-                (forest_tiles.as_slice(), Passability::SeethruBlocking)
+                (forest_tiles.as_slice(), Passability::SightBlocking)
             } else {
                 (ruin_tiles.as_slice(), Passability::Blocking)
             };
@@ -110,6 +141,16 @@ pub fn generate_level(
                             position: pos,
                             passable: passability,
                         });
+
+                        if passability == Passability::Blocking {
+                            map.solid.insert(pos);
+                        }
+
+                        map.data.set_transparent(
+                            (pos.x + grid.size.x / 2 + 1) as usize,
+                            (pos.y + grid.size.y / 2 + 1) as usize,
+                            passability == Passability::Passable,
+                        );
                     }
                 }
             }
@@ -122,6 +163,8 @@ pub fn generate_level(
         count: usize,
         size: IVec2,
         rng: &mut ResMut<Random>,
+        grid: &Res<Grid>,
+        map: &mut ResMut<WorldData>,
         okay: &HashSet<IVec2>,
     ) {
         const WALL_TILES: [usize; 1] = [13 * 49 + 0];
@@ -151,6 +194,11 @@ pub fn generate_level(
                         });
 
                         walls.insert(pos, index);
+                        map.data.set_transparent(
+                            (pos.x + grid.size.x / 2 + 1) as usize,
+                            (pos.y + grid.size.y / 2 + 1) as usize,
+                            false,
+                        );
                     }
                 }
             }
@@ -167,7 +215,12 @@ pub fn generate_level(
                             index,
                         });
 
-                        walls.insert(pos, index);
+                        walls.remove(&pos);
+                        map.data.set_transparent(
+                            (pos.x + grid.size.x / 2 + 1) as usize,
+                            (pos.y + grid.size.y / 2 + 1) as usize,
+                            true,
+                        );
                     }
                 }
             }
@@ -182,18 +235,48 @@ pub fn generate_level(
                             Passability::Blocking
                         },
                     });
+                    map.solid.insert(*pos);
                 }
             }
         }
     }
 
     let size = grid.size;
-    let okay = clear_grid(&grid, &mut rng, &radius, &mut sprites);
-    make_obstructions(&mut commands, 20, size, &mut rng, &okay);
-    make_houses(&mut commands, 50, size, &mut rng, &okay);
+
+    map.data.clear_fov();
+    map.memory.clear();
+
+    for entity in &game_entities {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    let okay = clear_grid(
+        &grid,
+        &mut rng,
+        &mut map,
+        &radius,
+        &mut visibility,
+        &mut sprites,
+    );
+
+    make_obstructions(&mut commands, 20, size, &mut rng, &grid, &mut map, &okay);
+    make_houses(&mut commands, 40, size, &mut rng, &grid, &mut map, &okay);
 
     // add stuff
     // add people
+
+    let mut player = commands.spawn(GameEntityBundle::new(
+        &grid,
+        rng.from(
+            okay.into_iter()
+                .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
+                .collect::<Vec<_>>()
+                .as_slice(),
+        ),
+        26 + 1 * 49,
+    ));
+
+    player.insert((PlayerMarker, Sight(12)));
 }
 
 pub fn debug_radius(mut map_radius: ResMut<MapRadius>, keys: Res<Input<KeyCode>>) {
@@ -223,10 +306,18 @@ pub struct SvarogProcgenPlugin;
 impl Plugin for SvarogProcgenPlugin {
     fn build(&self, bevy: &mut App) {
         bevy.add_event::<ProcGenEvent>()
+            .add_event::<RecalculateFOVEvent>()
             .insert_resource(MapRadius(800))
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(Msaa::Off)
             .add_systems(Update, generate_level.run_if(on_event::<ProcGenEvent>()))
+            .add_systems(Update, on_new_fov_added)
+            .add_systems(
+                PostUpdate,
+                recalculate_fov
+                    .run_if(on_event::<RecalculateFOVEvent>())
+                    .run_if(in_state(GameStates::Game)),
+            )
             .add_systems(Update, (debug_radius, debug_procgen));
     }
 }

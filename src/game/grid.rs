@@ -2,16 +2,19 @@ use bevy::{
     app::Plugin,
     asset::Handle,
     ecs::{
+        bundle::Bundle,
         component::Component,
         entity::Entity,
         schedule::{NextState, OnEnter, OnExit},
         system::{Commands, Res, ResMut, Resource},
     },
     math::{IVec2, Vec3},
+    render::view::{RenderLayers, Visibility},
     sprite::{SpriteSheetBundle, TextureAtlas, TextureAtlasSprite},
     transform::components::Transform,
-    utils::HashMap,
+    utils::{HashMap, HashSet},
 };
+use doryen_fov::MapData;
 
 use crate::game::{GameAssets, GameStates};
 
@@ -25,6 +28,47 @@ use bevy::{
 #[cfg(feature = "debug_mode")]
 use super::feel::Random;
 
+#[derive(Component)]
+pub struct GameEntityMarker;
+
+#[derive(Component)]
+pub struct GameEntity {
+    pub position: IVec2,
+    pub index: usize,
+}
+
+#[derive(Component)]
+pub struct FOV;
+
+#[derive(Bundle)]
+pub struct GameEntityBundle {
+    pub entity: GameEntity,
+    pub sprite: SpriteSheetBundle,
+    pub marker: GameEntityMarker,
+    pub layer: RenderLayers,
+    pub fov: FOV,
+}
+
+impl GameEntityBundle {
+    pub fn new(grid: &Res<Grid>, pos: IVec2, index: usize) -> Self {
+        GameEntityBundle {
+            entity: GameEntity {
+                position: pos,
+                index,
+            },
+            sprite: SpriteSheetBundle {
+                sprite: TextureAtlasSprite::new(index),
+                texture_atlas: grid.atlas.clone_weak(),
+                transform: grid.get_tile_position(pos),
+                ..Default::default()
+            },
+            marker: GameEntityMarker,
+            layer: RenderLayers::layer(1),
+            fov: FOV,
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct Grid {
     pub size: IVec2,
@@ -33,26 +77,38 @@ pub struct Grid {
     pub entities: HashMap<IVec2, Entity>,
 }
 
-#[derive(Component, Default, Clone, Copy)]
+#[derive(Resource)]
+pub struct WorldData {
+    pub data: MapData,
+    pub solid: HashSet<IVec2>,
+    pub memory: HashSet<IVec2>,
+}
+
+#[derive(Component, Default, Clone, Copy, PartialEq)]
 pub enum Passability {
     #[default]
     Passable,
     Blocking,
-    SeethruBlocking,
+    SightBlocking,
 }
 
 impl Grid {
+    pub fn get_tile_position(&self, position: IVec2) -> Transform {
+        Transform::from_translation(Vec3::new(
+            (self.tile.x * position.x) as f32,
+            (self.tile.y * position.y) as f32,
+            0.0,
+        ))
+    }
+
     pub fn spawn(&self, commands: &mut Commands, index: usize, position: IVec2) -> Entity {
         commands
             .spawn((
                 SpriteSheetBundle {
-                    transform: Transform::from_translation(Vec3::new(
-                        (self.tile.x * position.x) as f32,
-                        (self.tile.y * position.y) as f32,
-                        0.0,
-                    )),
+                    transform: self.get_tile_position(position),
                     sprite: TextureAtlasSprite::new(index),
                     texture_atlas: self.atlas.clone_weak(),
+                    visibility: Visibility::Hidden,
                     ..Default::default()
                 },
                 Passability::Passable,
@@ -71,6 +127,12 @@ fn create_grid_resource(mut commands: Commands, assets: Res<GameAssets>) {
         tile: IVec2::new(16, 16),
         atlas: assets.atlas.clone_weak(),
         entities: Default::default(),
+    });
+
+    commands.insert_resource(WorldData {
+        data: MapData::new(122, 64),
+        solid: Default::default(),
+        memory: Default::default(),
     });
 }
 

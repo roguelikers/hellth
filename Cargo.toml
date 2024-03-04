@@ -18,5 +18,8 @@ bevy_mod_picking = "0.17.0"
 bevy_tweening = "0.9.0"
 bevy_rand = { version = "0.4", features = ["rand_chacha", "wyrand"] }
 
+doryen-fov="*"
+priority-queue = "2.0.2"
+
 [features]
 debug_mode = []

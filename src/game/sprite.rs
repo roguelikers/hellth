@@ -1,6 +1,6 @@
 use bevy::{ecs::system::Command, math::IVec2, sprite::TextureAtlasSprite};
 
-use super::grid::{Grid, Passability};
+use super::grid::{Grid, Passability, WorldData};
 
 pub struct ChangeSprite {
     pub position: IVec2,
@@ -68,7 +68,7 @@ impl Command for ChangePassability {
             sprite.color = match self.passable {
                 Passability::Passable => Color::WHITE,
                 Passability::Blocking => Color::RED,
-                Passability::SeethruBlocking => Color::YELLOW,
+                Passability::SightBlocking => Color::YELLOW,
             };
         }
     }
