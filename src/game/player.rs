@@ -1,24 +1,27 @@
 use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
 use super::{
-    fov::RecalculateFOVEvent,
-    grid::{GameEntity, Grid, WorldData},
+    commands::GameCommand,
+    grid::{GameEntity, WorldData},
     procgen::PlayerMarker,
+    turns::TurnOrder,
     GameStates,
 };
 
 pub fn character_controls(
-    mut fov_events: EventWriter<RecalculateFOVEvent>,
-    grid: Option<Res<Grid>>,
+    turn_order: Res<TurnOrder>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
-    mut player_query: Query<(&mut GameEntity, &mut Transform), With<PlayerMarker>>,
+    player_query: Query<(Entity, &GameEntity), With<PlayerMarker>>,
+    mut game_commands: EventWriter<GameCommand>,
 ) {
-    let Some(grid) = grid else {
-        return;
-    };
+    if let Some(e) = turn_order.peek() {
+        if !player_query.contains(e) {
+            return;
+        }
+    }
 
-    let Ok((mut player_game_entity, mut transform)) = player_query.get_single_mut() else {
+    let Ok((entity, player_game_entity)) = player_query.get_single() else {
         return;
     };
 
@@ -39,11 +42,11 @@ pub fn character_controls(
             .solid
             .contains(&(player_game_entity.position + direction))
         {
-            player_game_entity.position += direction;
-            transform.translation = grid
-                .get_tile_position(player_game_entity.position)
-                .translation;
-            fov_events.send(RecalculateFOVEvent);
+            game_commands.send(GameCommand::Move {
+                entity,
+                direction,
+                cost: 50,
+            });
         }
     }
 }

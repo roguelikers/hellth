@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting};
 
-use super::grid::{GameEntity, Grid, WorldData, FOV};
+use super::{
+    grid::{GameEntity, Grid, WorldData, FOV},
+    turns::TurnOrder,
+};
 
 #[derive(Event)]
 pub struct RecalculateFOVEvent;
@@ -10,7 +13,7 @@ pub struct RecalculateFOVEvent;
 pub struct Sight(pub u32);
 
 pub fn on_new_fov_added(
-    query: Query<Entity, Added<FOV>>,
+    query: Query<Added<FOV>>,
     mut recalc_event: EventWriter<RecalculateFOVEvent>,
 ) {
     for _ in &query {

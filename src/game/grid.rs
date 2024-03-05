@@ -33,6 +33,7 @@ pub struct GameEntityMarker;
 
 #[derive(Component)]
 pub struct GameEntity {
+    pub name: String,
     pub position: IVec2,
     pub index: usize,
 }
@@ -50,9 +51,10 @@ pub struct GameEntityBundle {
 }
 
 impl GameEntityBundle {
-    pub fn new(grid: &Res<Grid>, pos: IVec2, index: usize) -> Self {
+    pub fn new(grid: &Res<Grid>, name: &str, pos: IVec2, index: usize) -> Self {
         GameEntityBundle {
             entity: GameEntity {
+                name: name.to_string(),
                 position: pos,
                 index,
             },

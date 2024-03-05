@@ -4,15 +4,18 @@ use bevy::{
 };
 
 use crate::game::{
+    ai::AIAgent,
     fov::Sight,
     grid::GameEntityBundle,
     sprite::{ChangePassability, ChangeSprite},
+    turns::TurnTaker,
 };
 
 use super::{
     feel::Random,
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
     grid::{GameEntityMarker, Grid, Passability, WorldData},
+    turns::{TurnOrder, TurnOrderProgressEvent},
     GameStates,
 };
 
@@ -32,8 +35,10 @@ pub fn generate_level(
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
+    mut turn_order: ResMut<TurnOrder>,
     mut sprites: Query<(&mut TextureAtlasSprite, &mut Passability)>,
     mut visibility: Query<&mut Visibility>,
+    mut turn_order_progress: EventWriter<TurnOrderProgressEvent>,
     grid: Res<Grid>,
     radius: Res<MapRadius>,
 ) {
@@ -246,6 +251,8 @@ pub fn generate_level(
     map.data.clear_fov();
     map.memory.clear();
 
+    turn_order.clear();
+
     for entity in &game_entities {
         commands.entity(entity).despawn_recursive();
     }
@@ -264,19 +271,30 @@ pub fn generate_level(
 
     // add stuff
     // add people
+    let places = okay
+        .into_iter()
+        .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
+        .collect::<Vec<_>>();
 
     let mut player = commands.spawn(GameEntityBundle::new(
         &grid,
-        rng.from(
-            okay.into_iter()
-                .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
-                .collect::<Vec<_>>()
-                .as_slice(),
-        ),
+        "Player",
+        rng.from(&places),
         26 + 1 * 49,
     ));
 
-    player.insert((PlayerMarker, Sight(12)));
+    player.insert((PlayerMarker, TurnTaker, Sight(12)));
+
+    let mut mage = commands.spawn(GameEntityBundle::new(
+        &grid,
+        "Mage",
+        rng.from(&places),
+        24 + 1 * 49,
+    ));
+
+    mage.insert((TurnTaker, AIAgent));
+
+    turn_order_progress.send(TurnOrderProgressEvent);
 }
 
 pub fn debug_radius(mut map_radius: ResMut<MapRadius>, keys: Res<Input<KeyCode>>) {
@@ -311,7 +329,7 @@ impl Plugin for SvarogProcgenPlugin {
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(Msaa::Off)
             .add_systems(Update, generate_level.run_if(on_event::<ProcGenEvent>()))
-            .add_systems(Update, on_new_fov_added)
+            .add_systems(Update, on_new_fov_added.run_if(in_state(GameStates::Game)))
             .add_systems(
                 PostUpdate,
                 recalculate_fov

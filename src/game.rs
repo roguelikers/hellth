@@ -1,27 +1,26 @@
 use bevy::{
     core_pipeline::clear_color::ClearColorConfig,
     prelude::*,
-    render::{
-        camera::{CameraUpdateSystem, ScalingMode},
-        view::RenderLayers,
-    },
-    transform::TransformSystem,
+    render::{camera::ScalingMode, view::RenderLayers},
 };
 use bevy_asset_loader::prelude::*;
 
 use self::{
-    camera::{focus_camera, FollowCameraMarker, MovingCameraMarker, SvarogCameraPlugin},
+    ai::SvarogAIPlugin,
+    camera::{FollowCameraMarker, MainCameraMarker, SvarogCameraPlugin},
+    commands::SvarogCommandsPlugin,
     feel::SvarogFeelPlugin,
-    fov::RecalculateFOVEvent,
-    grid::{GameEntity, Grid, SvarogGridPlugin, WorldData},
+    grid::SvarogGridPlugin,
     loading::SvarogLoadingPlugin,
-    player::{character_controls, SvarogPlayerPlugin},
-    procgen::{PlayerMarker, ProcGenEvent, SvarogProcgenPlugin},
+    player::SvarogPlayerPlugin,
+    procgen::{ProcGenEvent, SvarogProcgenPlugin},
     turns::SvarogTurnPlugin,
     window::SvarogWindowPlugins,
 };
 
+pub mod ai;
 pub mod camera;
+pub mod commands;
 pub mod feel;
 pub mod fov;
 pub mod grid;
@@ -73,7 +72,7 @@ fn start_game(mut commands: Commands, mut procgen_events: EventWriter<ProcGenEve
             },
             ..Default::default()
         },
-        MovingCameraMarker,
+        MainCameraMarker,
         RenderLayers::layer(0),
     ));
 
@@ -115,6 +114,8 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogCameraPlugin)
             .add_plugins(SvarogTurnPlugin)
             .add_plugins(SvarogPlayerPlugin)
+            .add_plugins(SvarogAIPlugin)
+            .add_plugins(SvarogCommandsPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }
 }

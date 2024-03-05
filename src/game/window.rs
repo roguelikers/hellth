@@ -1,5 +1,5 @@
 use bevy::{
-    app::{Plugin, Startup, Update},
+    app::{Plugin, Startup},
     render::texture::ImagePlugin,
     window::{Window, WindowPlugin},
     winit::WinitWindows,
@@ -26,7 +26,6 @@ use bevy::prelude::*;
 
 use bevy::diagnostic::DiagnosticsStore;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
-use bevy_mod_picking::DefaultPickingPlugins;
 use winit::window::Icon;
 
 #[derive(Component)]
@@ -129,7 +128,7 @@ pub struct SvarogWindowPlugins;
 
 impl Plugin for SvarogWindowPlugins {
     fn build(&self, bevy: &mut bevy::prelude::App) {
-        bevy.add_plugins((
+        bevy.add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
@@ -139,11 +138,25 @@ impl Plugin for SvarogWindowPlugins {
                     }),
                     ..Default::default()
                 }),
-            //FrameTimeDiagnosticsPlugin,
-        ))
-        //.add_plugins(DefaultPickingPlugins)
-        //.add_systems(Startup, (set_window_icon, setup_fps_counter))
-        //.add_systems(Update, (fps_text_update_system, fps_counter_showhide));
-        ;
+        );
+        #[cfg(feature = "debug_mode")]
+        bevy.edit_schedule(Update, |schedule| {
+            schedule.set_build_settings(ScheduleBuildSettings {
+                ambiguity_detection: LogLevel::Warn,
+                ..default()
+            });
+        });
+        bevy.add_systems(Startup, set_window_icon)
+            .add_plugins(bevy_mod_imgui::ImguiPlugin {
+                ini_filename: Some("imgui.ini".into()),
+                ..Default::default()
+            });
+
+        #[cfg(feature = "debug_mode")]
+        bevy.add_plugins(FrameTimeDiagnosticsPlugin);
+        #[cfg(feature = "debug_mode")]
+        bevy.add_systems(Startup, setup_fps_counter);
+        #[cfg(feature = "debug_mode")]
+        bevy.add_systems(Update, (fps_text_update_system, fps_counter_showhide));
     }
 }

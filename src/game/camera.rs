@@ -1,4 +1,5 @@
 use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy_mod_imgui::prelude::*;
 
 use super::{
     grid::{GameEntity, Grid},
@@ -7,7 +8,7 @@ use super::{
 };
 
 #[derive(Component)]
-pub struct MovingCameraMarker;
+pub struct MainCameraMarker;
 
 #[derive(Component)]
 pub struct FollowCameraMarker;
@@ -24,13 +25,14 @@ pub struct CameraSettings {
     pub tracking_speed: f32,
     pub tracking_distance: f32,
     pub stop_tracking_under: f32,
+    pub smooth_camera_track: bool,
 }
 
-pub fn focus_camera(
-    mut main_camera: Query<&mut Transform, With<MovingCameraMarker>>,
+pub fn track_camera(
+    mut main_camera: Query<&mut Transform, With<MainCameraMarker>>,
     mut follow_cameras: Query<
         &mut Transform,
-        (Without<MovingCameraMarker>, With<FollowCameraMarker>),
+        (Without<MainCameraMarker>, With<FollowCameraMarker>),
     >,
     player: Query<&GameEntity, With<PlayerMarker>>,
     camera_settings: Res<CameraSettings>,
@@ -55,9 +57,14 @@ pub fn focus_camera(
             CameraMovingMode::Calm => {
                 let dist = camera_transform.translation.distance(target);
                 if dist > camera_settings.tracking_distance {
-                    *mode = CameraMovingMode::Tracking;
+                    if camera_settings.smooth_camera_track {
+                        *mode = CameraMovingMode::Tracking;
+                    } else {
+                        camera_transform.translation = target;
+                    }
                 }
             }
+
             CameraMovingMode::Tracking => {
                 let direction = (target - camera_transform.translation).normalize_or_zero();
                 camera_transform.translation +=
@@ -76,7 +83,12 @@ pub fn focus_camera(
     }
 }
 
-fn debug_camera(mut camera_query: Query<&mut OrthographicProjection>, keys: Res<Input<KeyCode>>) {
+fn debug_camera(
+    mut camera_query: Query<&mut OrthographicProjection>,
+    keys: Res<Input<KeyCode>>,
+    mut context: NonSendMut<ImguiContext>,
+    mut camera_settings: ResMut<CameraSettings>,
+) {
     for mut projection in &mut camera_query {
         if let ScalingMode::WindowSize(size) = projection.scaling_mode {
             let mut new_size = size;
@@ -93,17 +105,36 @@ fn debug_camera(mut camera_query: Query<&mut OrthographicProjection>, keys: Res<
             projection.scaling_mode = ScalingMode::WindowSize(new_size);
         }
     }
+
+    let ui = context.ui();
+    let window = ui.window("Camera");
+    window
+        .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+        .save_settings(true)
+        .build(|| {
+            ui.input_float("Tracking speed", &mut camera_settings.tracking_speed)
+                .build();
+            ui.input_float("Tracking distance", &mut camera_settings.tracking_distance)
+                .build();
+            ui.input_float(
+                "Stop tracking under",
+                &mut camera_settings.stop_tracking_under,
+            )
+            .build();
+            ui.checkbox("Smooth tracking", &mut camera_settings.smooth_camera_track);
+        });
 }
 
 pub struct SvarogCameraPlugin;
 impl Plugin for SvarogCameraPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
         bevy.insert_resource(CameraSettings {
-            tracking_speed: 128.0,
+            tracking_speed: 256.0,
             tracking_distance: 160.0,
-            stop_tracking_under: 16.0,
+            stop_tracking_under: 32.0,
+            smooth_camera_track: true,
         })
-        .add_systems(PostUpdate, focus_camera.run_if(in_state(GameStates::Game)))
+        .add_systems(PostUpdate, track_camera.run_if(in_state(GameStates::Game)))
         .add_systems(PostUpdate, debug_camera);
     }
 }

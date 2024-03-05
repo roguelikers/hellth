@@ -2,7 +2,6 @@ use std::ops::Range;
 
 use bevy::{app::Plugin, ecs::system::Resource, math::IVec2};
 use bevy_rand::{prelude::WyRand, resource::GlobalEntropy};
-use bevy_tweening::TweeningPlugin;
 
 use funty::Unsigned;
 use rand_core::RngCore;
@@ -36,7 +35,7 @@ pub struct SvarogFeelPlugin;
 
 impl Plugin for SvarogFeelPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
-        bevy.add_plugins(TweeningPlugin);
+        //bevy.add_plugins(TweeningPlugin);
         bevy.insert_resource(Random::default());
     }
 }
