@@ -1,32 +1,44 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 
-use super::{commands::move_command::MoveCommand, feel::Random, turns::StartTurnEvent};
+use crate::game::actions::move_action::MoveAction;
 
-// i'm running away from actually doing anything here yet
+use super::{
+    actions::ActionEvent, feel::Random, grid::WorldEntity, procgen::PlayerMarker, turns::TurnOrder,
+    GameStates,
+};
+
 #[derive(Component)]
 pub struct AIAgent;
 
-pub fn ai_responds_to_start_turn(
-    mut start_turn_events: EventReader<StartTurnEvent>,
-    agents: Query<&mut AIAgent>,
+pub fn ai_agents_act(
+    mut turn_order: ResMut<TurnOrder>,
+    player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
+    non_players: Query<(Entity, &WorldEntity), Without<PlayerMarker>>,
     mut rng: ResMut<Random>,
-    mut move_commands: EventWriter<MoveCommand>,
-    //mut turn_order: ResMut<TurnOrder>,
+    mut actions: EventWriter<ActionEvent>,
 ) {
-    for StartTurnEvent(entity) in start_turn_events.read() {
-        if let Ok(_agent) = agents.get(*entity) {
-            // todo: add scripting support for this part for quick iteration
-            // TODO: silly logic to see if it works
-            // TODO: make sure that everyone has an agent!
+    let Ok((player_entity, player_world)) = player.get_single() else {
+        return;
+    };
 
-            // we can't use commands to do multiple agents in the same frame
-            // i need to figure out how to do this without taking a big number of arguments in
+    let Some(top) = turn_order.peek() else {
+        return;
+    };
 
-            move_commands.send(MoveCommand {
-                entity: *entity,
+    if top == player_entity {
+        return;
+    }
+
+    while turn_order.peek() != Some(player_entity) {
+        if let Some(top) = turn_order.peek() {
+            println!("Top: {:?}", top);
+            // we're going to waste their time and do nothing until we fix the player
+            actions.send(ActionEvent(Box::new(MoveAction {
+                entity: top,
                 direction: rng.gen2d(-1..2, -1..2),
-                cost: 100,
-            });
+            })));
+
+            turn_order.pushback(100);
         }
     }
 }
@@ -35,9 +47,6 @@ pub struct SvarogAIPlugin;
 
 impl Plugin for SvarogAIPlugin {
     fn build(&self, bevy: &mut App) {
-        bevy.add_systems(
-            Update,
-            ai_responds_to_start_turn.run_if(on_event::<StartTurnEvent>()),
-        );
+        bevy.add_systems(Update, ai_agents_act.run_if(in_state(GameStates::Game)));
     }
 }

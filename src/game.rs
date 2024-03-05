@@ -6,9 +6,9 @@ use bevy::{
 use bevy_asset_loader::prelude::*;
 
 use self::{
+    actions::SvarogActionsPlugin,
     ai::SvarogAIPlugin,
     camera::{FollowCameraMarker, MainCameraMarker, SvarogCameraPlugin},
-    commands::SvarogCommandsPlugin,
     feel::SvarogFeelPlugin,
     grid::SvarogGridPlugin,
     loading::SvarogLoadingPlugin,
@@ -19,9 +19,9 @@ use self::{
     window::SvarogWindowPlugins,
 };
 
+pub mod actions;
 pub mod ai;
 pub mod camera;
-pub mod commands;
 pub mod feel;
 pub mod fov;
 pub mod grid;
@@ -111,6 +111,7 @@ impl Plugin for SvarogGamePlugin {
     fn build(&self, bevy: &mut App) {
         bevy.add_plugins(SvarogWindowPlugins)
             .add_plugins(SvarogLoadingPlugin)
+            .add_plugins(SvarogActionsPlugin)
             .add_plugins(SvarogGridPlugin)
             .add_plugins(SvarogFeelPlugin)
             .add_plugins(SvarogProcgenPlugin)
@@ -118,7 +119,7 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogTurnPlugin)
             .add_plugins(SvarogPlayerPlugin)
             .add_plugins(SvarogAIPlugin)
-            .add_plugins(SvarogCommandsPlugin)
+            //.add_plugins(SvarogCommandsPlugin)
             .add_plugins(SvarogUIPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }
