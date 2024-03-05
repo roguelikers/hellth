@@ -1,7 +1,7 @@
 use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
 use super::{
-    commands::GameCommand,
+    commands::move_command::MoveCommand,
     grid::{WorldData, WorldEntity},
     procgen::PlayerMarker,
     turns::TurnOrder,
@@ -13,7 +13,7 @@ pub fn character_controls(
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
     player_query: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    mut game_commands: EventWriter<GameCommand>,
+    mut move_commands: EventWriter<MoveCommand>,
 ) {
     if let Some(e) = turn_order.peek() {
         if !player_query.contains(e) {
@@ -42,7 +42,7 @@ pub fn character_controls(
             .solid
             .contains(&(player_game_entity.position + direction))
         {
-            game_commands.send(GameCommand::Move {
+            move_commands.send(MoveCommand {
                 entity,
                 direction,
                 cost: 50,

@@ -30,7 +30,7 @@ pub const WALL6: Tile = Tile(18, 11);
 pub const INTERIOR_FLOOR1: Tile = Tile(0, 16);
 pub const INTERIOR_FLOOR2: Tile = Tile(0, 17);
 
-pub const OLD_MAGE: Tile = Tile(1, 24);
+pub const OLD_MAGE: Tile = Tile(2, 24);
 pub const EMO_MAGE: Tile = Tile(1, 26);
 
 #[derive(Default)]

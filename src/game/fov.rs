@@ -25,6 +25,7 @@ pub fn on_new_fov_added(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::collapsible_else_if)]
 pub fn recalculate_fov(
     mut recalc_event: EventReader<RecalculateFOVEvent>,
     player_entity: Query<(&WorldEntity, &Sight), With<PlayerMarker>>,
@@ -109,16 +110,42 @@ pub fn recalculate_fov(
                 *vis = Visibility::Hidden;
             }
         } else {
-            let (x, y) = grid.norm(last_seen_at.0.unwrap());
-            if map.data.is_in_fov(x, y) {
-                *vis = Visibility::Visible;
-                sprite.color = Color::WHITE;
-                transform.translation = grid.get_tile_position(world_entity.position).translation;
-                *last_seen_at = LastSeen(Some(world_entity.position));
+            // so - our edgecase says that
+            //  - our last_seen position is in fov, but
+            //  - our ACTUAL position isn't
+            let last_seen_pos = last_seen_at.0.unwrap();
+            let (last_x, last_y) = grid.norm(last_seen_pos);
+            let (now_x, now_y) = grid.norm(world_entity.position);
+            if map.data.is_in_fov(last_x, last_y) {
+                if map.data.is_in_fov(now_x, now_y) {
+                    // last in sight, but current also in sight! - MOVE
+                    *vis = Visibility::Visible;
+                    sprite.color = Color::WHITE;
+                    transform.translation =
+                        grid.get_tile_position(world_entity.position).translation;
+                    *last_seen_at = LastSeen(Some(world_entity.position));
+                } else {
+                    // last in sight but current isn't - REMOVE! this is a mirage
+                    *vis = Visibility::Visible;
+                    sprite.color = Color::RED;
+                    transform.translation =
+                        grid.get_tile_position(world_entity.position).translation;
+                    *last_seen_at = LastSeen(Some(world_entity.position));
+                }
             } else {
-                *vis = Visibility::Visible;
-                sprite.color = Color::GRAY;
-                *last_seen_at = LastSeen(Some(world_entity.position));
+                if map.data.is_in_fov(now_x, now_y) {
+                    // last not in sight but current is! - MOVE
+                    *vis = Visibility::Visible;
+                    sprite.color = Color::WHITE;
+                    transform.translation =
+                        grid.get_tile_position(world_entity.position).translation;
+                    *last_seen_at = LastSeen(Some(world_entity.position));
+                } else {
+                    // last not in sight but neither is current? - MEMORY!
+                    *vis = Visibility::Visible;
+                    sprite.color = Color::GRAY;
+                    *last_seen_at = LastSeen(Some(world_entity.position));
+                }
             }
         }
     }

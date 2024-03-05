@@ -290,6 +290,7 @@ pub fn generate_level(
         .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
         .collect::<Vec<_>>();
 
+    // add player
     let mut player = commands.spawn(WorldEntityBundle::new(
         &grid,
         "Player",
@@ -298,14 +299,18 @@ pub fn generate_level(
     ));
     player.insert((PlayerMarker, TurnTaker, Sight(12)));
 
-    let mut mage = commands.spawn(WorldEntityBundle::new(
-        &grid,
-        "Mage",
-        rng.from(&places),
-        OLD_MAGE.into(),
-    ));
-    mage.insert((TurnTaker, AIAgent, LastSeen::default()));
-
+    // add "enemies"
+    for i in 1..10 {
+        let index: usize = OLD_MAGE.into();
+        let mut mage = commands.spawn(WorldEntityBundle::new(
+            &grid,
+            format!("Mage {}", i).as_str(),
+            rng.from(&places),
+            index + rng.gen(0..7) as usize,
+        ));
+        // todo: bundle these into an NPCBundle
+        mage.insert((TurnTaker, AIAgent, LastSeen::default()));
+    }
     turn_order_progress.send(TurnOrderProgressEvent);
 }
 

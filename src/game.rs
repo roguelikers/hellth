@@ -15,6 +15,7 @@ use self::{
     player::SvarogPlayerPlugin,
     procgen::{ProcGenEvent, SvarogProcgenPlugin},
     turns::SvarogTurnPlugin,
+    ui::SvarogUIPlugin,
     window::SvarogWindowPlugins,
 };
 
@@ -30,6 +31,7 @@ pub mod procgen;
 pub mod sprite;
 pub mod sprites;
 pub mod turns;
+pub mod ui;
 pub mod window;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
@@ -117,6 +119,7 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogPlayerPlugin)
             .add_plugins(SvarogAIPlugin)
             .add_plugins(SvarogCommandsPlugin)
+            .add_plugins(SvarogUIPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }
 }
