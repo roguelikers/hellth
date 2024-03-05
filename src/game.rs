@@ -28,6 +28,7 @@ pub mod loading;
 pub mod player;
 pub mod procgen;
 pub mod sprite;
+pub mod sprites;
 pub mod turns;
 pub mod window;
 

@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformS
 
 use super::{
     commands::GameCommand,
-    grid::{GameEntity, WorldData},
+    grid::{WorldData, WorldEntity},
     procgen::PlayerMarker,
     turns::TurnOrder,
     GameStates,
@@ -12,7 +12,7 @@ pub fn character_controls(
     turn_order: Res<TurnOrder>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
-    player_query: Query<(Entity, &GameEntity), With<PlayerMarker>>,
+    player_query: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
     mut game_commands: EventWriter<GameCommand>,
 ) {
     if let Some(e) = turn_order.peek() {

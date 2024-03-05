@@ -2,7 +2,7 @@ use bevy::{prelude::*, render::camera::ScalingMode};
 use bevy_mod_imgui::prelude::*;
 
 use super::{
-    grid::{GameEntity, Grid},
+    grid::{Grid, WorldEntity},
     procgen::PlayerMarker,
     GameStates,
 };
@@ -34,7 +34,7 @@ pub fn track_camera(
         &mut Transform,
         (Without<MainCameraMarker>, With<FollowCameraMarker>),
     >,
-    player: Query<&GameEntity, With<PlayerMarker>>,
+    player: Query<&WorldEntity, With<PlayerMarker>>,
     camera_settings: Res<CameraSettings>,
     grid: Option<Res<Grid>>,
     time: Res<Time>,

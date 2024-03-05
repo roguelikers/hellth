@@ -6,16 +6,17 @@ use doryen_fov::MapData;
 
 use crate::game::{
     ai::AIAgent,
-    fov::Sight,
-    grid::GameEntityBundle,
+    fov::{LastSeen, Sight},
+    grid::WorldEntityBundle,
     sprite::{ChangePassability, ChangeSprite},
+    sprites::*,
     turns::TurnTaker,
 };
 
 use super::{
     feel::Random,
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
-    grid::{GameEntityMarker, Grid, Passability, WorldData},
+    grid::{Grid, Passability, WorldData, WorldEntityMarker},
     turns::{TurnOrder, TurnOrderProgressEvent},
     GameStates,
 };
@@ -32,7 +33,7 @@ pub struct MapRadius(pub i32);
 #[allow(clippy::identity_op)]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_level(
-    game_entities: Query<Entity, With<GameEntityMarker>>,
+    game_entities: Query<Entity, With<WorldEntityMarker>>,
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
@@ -51,7 +52,15 @@ pub fn generate_level(
         visibility: &mut Query<&mut Visibility>,
         sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
     ) -> HashSet<IVec2> {
-        let symbols = [0, 0, 0, 0, 1, 2, 3, 4, 5];
+        let symbols = Tiles::default()
+            .add_more(EMPTY_FLOOR, 4)
+            .add_bunch(&[
+                EXTERIOR_FLOOR1,
+                EXTERIOR_FLOOR2,
+                EXTERIOR_FLOOR3,
+                EXTERIOR_FLOOR4,
+            ])
+            .done();
         let mut okay = HashSet::new();
 
         map.solid.clear();
@@ -74,7 +83,7 @@ pub fn generate_level(
                         true,
                     );
                 } else {
-                    sprite.index = 4 * 49 + 0;
+                    sprite.index = VOID.into();
                     sprite.color = Color::WHITE;
                     *passable = Passability::Blocking;
                     map.data.set_transparent(
@@ -82,6 +91,7 @@ pub fn generate_level(
                         (pos.y + grid.size.y / 2 + 1) as usize,
                         false,
                     );
+                    map.solid.insert(*pos);
                 }
             }
         });
@@ -99,25 +109,15 @@ pub fn generate_level(
         map: &mut ResMut<WorldData>,
         okay: &HashSet<IVec2>,
     ) {
-        let forest_tiles = [
-            0,
-            1 * 49 + 0,
-            1 * 49 + 1,
-            1 * 49 + 2,
-            1 * 49 + 3,
-            2 * 49 + 3,
-        ];
-        let ruin_tiles = [
-            11 * 49 + 1,
-            11 * 49 + 2,
-            13 * 49 + 0,
-            13 * 49 + 0,
-            13 * 49 + 0,
-            13 * 49 + 0,
-            17 * 49 + 10,
-            18 * 49 + 10,
-            18 * 49 + 11,
-        ];
+        let forest_tiles = Tiles::default()
+            .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
+            .add_more(FOREST4, 2)
+            .done();
+
+        let ruin_tiles = Tiles::default()
+            .add_more(WALL1, 4)
+            .add_bunch(&[WALL2, WALL3, WALL4, WALL5, WALL6])
+            .done();
 
         for _attempt in 0..count {
             let half = size / 2;
@@ -173,8 +173,17 @@ pub fn generate_level(
         map: &mut ResMut<WorldData>,
         okay: &HashSet<IVec2>,
     ) {
-        const WALL_TILES: [usize; 1] = [13 * 49 + 0];
-        const FLOOR_TILES: [usize; 14] = [17, 17, 17, 17, 17, 17, 17, 17, 17, 1, 2, 3, 4, 16];
+        let wall_tiles: Vec<usize> = Tiles::default().add_one(WALL1).done();
+        let floor_tiles: Vec<usize> = Tiles::default()
+            .add_more(INTERIOR_FLOOR2, 9)
+            .add_bunch(&[
+                EXTERIOR_FLOOR1,
+                EXTERIOR_FLOOR2,
+                EXTERIOR_FLOOR3,
+                EXTERIOR_FLOOR4,
+                INTERIOR_FLOOR1,
+            ])
+            .done();
 
         let mut walls = HashMap::new();
         for _attempt in 0..count {
@@ -193,7 +202,7 @@ pub fn generate_level(
                     let pos = middle + ij;
 
                     if okay.contains(&pos) {
-                        let index = rng.from(&WALL_TILES);
+                        let index = rng.from(&wall_tiles);
                         commands.add(ChangeSprite {
                             position: pos,
                             index,
@@ -215,7 +224,7 @@ pub fn generate_level(
                     let pos = middle + ij;
 
                     if okay.contains(&pos) {
-                        let index = rng.from(&FLOOR_TILES);
+                        let index = rng.from(&floor_tiles);
                         commands.add(ChangeSprite {
                             position: pos,
                             index,
@@ -239,7 +248,7 @@ pub fn generate_level(
                 if okay.contains(pos) {
                     commands.add(ChangePassability {
                         position: *pos,
-                        passable: if *wall != WALL_TILES[0] {
+                        passable: if *wall != wall_tiles[0] {
                             Passability::Passable
                         } else {
                             Passability::Blocking
@@ -281,23 +290,21 @@ pub fn generate_level(
         .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
         .collect::<Vec<_>>();
 
-    let mut player = commands.spawn(GameEntityBundle::new(
+    let mut player = commands.spawn(WorldEntityBundle::new(
         &grid,
         "Player",
         rng.from(&places),
-        26 + 1 * 49,
+        EMO_MAGE.into(),
     ));
-
     player.insert((PlayerMarker, TurnTaker, Sight(12)));
 
-    let mut mage = commands.spawn(GameEntityBundle::new(
+    let mut mage = commands.spawn(WorldEntityBundle::new(
         &grid,
         "Mage",
         rng.from(&places),
-        24 + 1 * 49,
+        OLD_MAGE.into(),
     ));
-
-    mage.insert((TurnTaker, AIAgent));
+    mage.insert((TurnTaker, AIAgent, LastSeen::default()));
 
     turn_order_progress.send(TurnOrderProgressEvent);
 }

@@ -29,34 +29,34 @@ use bevy::{
 use super::feel::Random;
 
 #[derive(Component)]
-pub struct GameEntityMarker;
+pub struct WorldEntityMarker;
 
 #[derive(Component)]
-pub struct GameEntity {
+pub struct WorldEntity {
     pub name: String,
     pub position: IVec2,
-    pub index: usize,
+    pub sprite_index: usize,
 }
 
 #[derive(Component)]
 pub struct FOV;
 
 #[derive(Bundle)]
-pub struct GameEntityBundle {
-    pub entity: GameEntity,
+pub struct WorldEntityBundle {
+    pub entity: WorldEntity,
     pub sprite: SpriteSheetBundle,
-    pub marker: GameEntityMarker,
+    pub marker: WorldEntityMarker,
     pub layer: RenderLayers,
     pub fov: FOV,
 }
 
-impl GameEntityBundle {
+impl WorldEntityBundle {
     pub fn new(grid: &Res<Grid>, name: &str, pos: IVec2, index: usize) -> Self {
-        GameEntityBundle {
-            entity: GameEntity {
+        WorldEntityBundle {
+            entity: WorldEntity {
                 name: name.to_string(),
                 position: pos,
-                index,
+                sprite_index: index,
             },
             sprite: SpriteSheetBundle {
                 sprite: TextureAtlasSprite::new(index),
@@ -64,7 +64,7 @@ impl GameEntityBundle {
                 transform: grid.get_tile_position(pos),
                 ..Default::default()
             },
-            marker: GameEntityMarker,
+            marker: WorldEntityMarker,
             layer: RenderLayers::layer(1),
             fov: FOV,
         }

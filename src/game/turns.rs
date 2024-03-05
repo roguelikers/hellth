@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_mod_imgui::ImguiContext;
 use priority_queue::PriorityQueue;
 
-use super::grid::GameEntity;
+use super::grid::WorldEntity;
 
 #[derive(Component)]
 pub struct TurnTaker;
@@ -87,7 +87,7 @@ pub fn turn_order_progress(
 fn debug_turn_order(
     mut context: NonSendMut<ImguiContext>,
     turn_order: Res<TurnOrder>,
-    entities: Query<&GameEntity>,
+    entities: Query<&WorldEntity>,
 ) {
     let ui = context.ui();
     let window = ui.window("Turn Order");

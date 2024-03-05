@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::{
     fov::RecalculateFOVEvent,
-    grid::{GameEntity, Grid, WorldData},
+    grid::{Grid, WorldData, WorldEntity},
     procgen::PlayerMarker,
     turns::TurnOrder,
 };
@@ -20,7 +20,7 @@ pub fn execute_move_command(
     grid: Res<Grid>,
     map: Res<WorldData>,
     mut turn_order: ResMut<TurnOrder>,
-    mut game_entities: Query<(&mut GameEntity, &mut Transform)>,
+    mut game_entities: Query<(&mut WorldEntity, &mut Transform)>,
     player_markers: Query<&PlayerMarker>,
 ) {
     for MoveCommand {

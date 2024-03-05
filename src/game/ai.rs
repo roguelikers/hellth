@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use super::{commands::GameCommand, turns::StartTurnEvent};
+use super::{commands::GameCommand, feel::Random, turns::StartTurnEvent};
 
 #[derive(Component)]
 pub struct AIAgent;
@@ -8,6 +8,7 @@ pub struct AIAgent;
 pub fn ai_responds_to_start_turn(
     mut start_turn_events: EventReader<StartTurnEvent>,
     mut agents: Query<&mut AIAgent>,
+    mut rng: ResMut<Random>,
     mut game_commands: EventWriter<GameCommand>,
 ) {
     for StartTurnEvent(entity) in start_turn_events.read() {
@@ -17,8 +18,8 @@ pub fn ai_responds_to_start_turn(
             // TODO: silly logic to see if it works
             game_commands.send(GameCommand::Move {
                 entity: *entity,
-                direction: IVec2::new(1, 0),
-                cost: 50,
+                direction: rng.gen2d(-1..2, -1..2),
+                cost: 100,
             });
         } else {
             println!("#{:?} has no reaction", entity);
