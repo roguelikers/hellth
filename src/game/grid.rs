@@ -79,6 +79,14 @@ pub struct Grid {
     pub entities: HashMap<IVec2, Entity>,
 }
 
+impl Grid {
+    pub fn norm(&self, tile: IVec2) -> (usize, usize) {
+        let x = (tile.x + self.size.x / 2) as usize;
+        let y = (tile.y + self.size.y / 2) as usize;
+        (x, y)
+    }
+}
+
 #[derive(Resource)]
 pub struct WorldData {
     pub data: MapData,

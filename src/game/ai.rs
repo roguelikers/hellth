@@ -2,12 +2,13 @@ use bevy::prelude::*;
 
 use super::{commands::GameCommand, feel::Random, turns::StartTurnEvent};
 
+// i'm running away from actually doing anything here yet
 #[derive(Component)]
 pub struct AIAgent;
 
 pub fn ai_responds_to_start_turn(
     mut start_turn_events: EventReader<StartTurnEvent>,
-    mut agents: Query<&mut AIAgent>,
+    agents: Query<&mut AIAgent>,
     mut rng: ResMut<Random>,
     mut game_commands: EventWriter<GameCommand>,
 ) {

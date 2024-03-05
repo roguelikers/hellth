@@ -24,25 +24,13 @@ pub fn on_new_fov_added(
     }
 }
 
-macro_rules! norm_x {
-    ($vec2:expr, $grid:ident) => {
-        ($vec2.x + $grid.size.x / 2 + 1) as usize
-    };
-}
-
-macro_rules! norm_y {
-    ($vec2:expr, $grid:ident) => {
-        ($vec2.y + $grid.size.y / 2 + 1) as usize
-    };
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn recalculate_fov(
     mut recalc_event: EventReader<RecalculateFOVEvent>,
     player_entity: Query<(&WorldEntity, &Sight), With<PlayerMarker>>,
-    non_players: Query<(Entity, &WorldEntity), Without<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     map: Option<ResMut<WorldData>>,
+    mut non_players: Query<(Entity, &WorldEntity, &mut Transform), Without<PlayerMarker>>,
     mut last_seen: Query<&mut LastSeen>,
     mut sprites: Query<&mut TextureAtlasSprite>,
     mut visibility: Query<&mut Visibility>,
@@ -61,20 +49,18 @@ pub fn recalculate_fov(
         return;
     };
 
-    let Ok((game_entity, sight)) = &player_entity.get_single() else {
+    let Ok((world_entity, sight)) = &player_entity.get_single() else {
         return;
     };
 
     let mut fov = FovRecursiveShadowCasting::new();
 
     map.data.clear_fov();
-    fov.compute_fov(
-        &mut map.data,
-        norm_x!(game_entity.position, grid),
-        norm_y!(game_entity.position, grid),
-        sight.0 as usize,
-        true,
-    );
+
+    {
+        let (x, y) = grid.norm(world_entity.position);
+        fov.compute_fov(&mut map.data, x, y, sight.0 as usize, true);
+    }
 
     grid.entities.iter().for_each(|(pos, e)| {
         let Ok(mut vis) = visibility.get_mut(*e) else {
@@ -85,7 +71,8 @@ pub fn recalculate_fov(
             return;
         };
 
-        if map.data.is_in_fov(norm_x!(pos, grid), norm_y!(pos, grid)) {
+        let (x, y) = grid.norm(*pos);
+        if map.data.is_in_fov(x, y) {
             map.memory.insert(*pos);
             sprite.color = Color::WHITE;
             *vis = Visibility::Visible;
@@ -98,31 +85,40 @@ pub fn recalculate_fov(
         }
     });
 
-    for (non_player_entity, non_player_game_entity) in &non_players {
+    for (non_player_entity, world_entity, mut transform) in &mut non_players {
         let Ok(mut vis) = visibility.get_mut(non_player_entity) else {
             continue;
         };
 
-        let pos = non_player_game_entity.position;
-        if map.data.is_in_fov(norm_x!(pos, grid), norm_y!(pos, grid)) {
-            *vis = Visibility::Visible;
-        } else {
-            // we should remember the last seen position, maybe
-            // but should do that via the _player's_ memory
-            // which i could distribute over the other objects,
-            // so that we wouldn't have to have a hash in one place
-            *vis = Visibility::Hidden;
+        let Ok(mut last_seen_at) = last_seen.get_mut(non_player_entity) else {
+            continue;
+        };
 
-            // wait... hmmm... the real position shouldn't be used for positioning, even though it changes
-            //
-            //       model                        view
-            //     position                    last_seen_at
-            //        - this changes over time
-            //        |------- bound to change ---->|
-            //                                      - this is the only thing shown
-            //
-            if let Ok(mut last_seen_at) = last_seen.get_mut(non_player_entity) {
-                *last_seen_at = LastSeen(Some(pos));
+        let Ok(mut sprite) = sprites.get_mut(non_player_entity) else {
+            return;
+        };
+
+        if last_seen_at.0.is_none() {
+            let (x, y) = grid.norm(world_entity.position);
+            if map.data.is_in_fov(x, y) {
+                *vis = Visibility::Visible;
+                sprite.color = Color::WHITE;
+                transform.translation = grid.get_tile_position(world_entity.position).translation;
+                *last_seen_at = LastSeen(Some(world_entity.position));
+            } else {
+                *vis = Visibility::Hidden;
+            }
+        } else {
+            let (x, y) = grid.norm(last_seen_at.0.unwrap());
+            if map.data.is_in_fov(x, y) {
+                *vis = Visibility::Visible;
+                sprite.color = Color::WHITE;
+                transform.translation = grid.get_tile_position(world_entity.position).translation;
+                *last_seen_at = LastSeen(Some(world_entity.position));
+            } else {
+                *vis = Visibility::Visible;
+                sprite.color = Color::GRAY;
+                *last_seen_at = LastSeen(Some(world_entity.position));
             }
         }
     }
