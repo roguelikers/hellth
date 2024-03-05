@@ -49,7 +49,7 @@ pub fn recalculate_fov(
         return;
     };
 
-    let Ok((world_entity, sight)) = &player_entity.get_single() else {
+    let Ok((player_in_world, sight)) = &player_entity.get_single() else {
         return;
     };
 
@@ -58,7 +58,7 @@ pub fn recalculate_fov(
     map.data.clear_fov();
 
     {
-        let (x, y) = grid.norm(world_entity.position);
+        let (x, y) = grid.norm(player_in_world.position);
         fov.compute_fov(&mut map.data, x, y, sight.0 as usize, true);
     }
 

@@ -81,8 +81,8 @@ pub struct Grid {
 
 impl Grid {
     pub fn norm(&self, tile: IVec2) -> (usize, usize) {
-        let x = (tile.x + self.size.x / 2) as usize;
-        let y = (tile.y + self.size.y / 2) as usize;
+        let x = (tile.x + self.size.x / 2 + 1) as usize;
+        let y = (tile.y + self.size.y / 2 + 1) as usize;
         (x, y)
     }
 }
