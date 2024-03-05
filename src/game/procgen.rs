@@ -2,6 +2,7 @@ use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
 };
+use doryen_fov::MapData;
 
 use crate::game::{
     ai::AIAgent,
@@ -226,6 +227,10 @@ pub fn generate_level(
                             (pos.y + grid.size.y / 2 + 1) as usize,
                             true,
                         );
+
+                        if map.solid.contains(&pos) {
+                            map.solid.remove(&pos);
+                        }
                     }
                 }
             }
@@ -248,7 +253,7 @@ pub fn generate_level(
 
     let size = grid.size;
 
-    map.data.clear_fov();
+    map.data = MapData::new(122, 64);
     map.memory.clear();
 
     turn_order.clear();
