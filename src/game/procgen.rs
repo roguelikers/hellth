@@ -6,9 +6,11 @@ use doryen_fov::MapData;
 
 use crate::game::{
     ai::{AIAgent, AIPlan},
+    character::Character,
     fov::{LastSeen, Sight},
     grid::WorldEntityBundle,
     health::Health,
+    player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
     turns::TurnTaker,
@@ -307,10 +309,17 @@ pub fn generate_level(
         true,
         true,
     ));
-    player.insert((PlayerMarker, Health::new(10), TurnTaker, Sight(6)));
+    player.insert((
+        Character::default(),
+        PlayerMarker,
+        PlayerState::default(),
+        Health::new(10),
+        TurnTaker,
+        Sight(6),
+    ));
 
     // add "enemies"
-    for i in 1..2 {
+    for i in 1..20 {
         let index: usize = OLD_MAGE.into();
         let mut mage = commands.spawn(WorldEntityBundle::new(
             &grid,
@@ -323,6 +332,7 @@ pub fn generate_level(
 
         mage.insert((
             TurnTaker,
+            Character::default(),
             AIAgent::default(),
             AIPlan::default(),
             Health::new(10),

@@ -1069,6 +1069,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_trauma_shake"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d134420d578c26efd7ad5cbfd4684db4979228f0c07d888eba4e014719aacaa"
+dependencies = [
+ "bevy",
+ "noisy_bevy",
+]
+
+[[package]]
 name = "bevy_tweening"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2223,6 +2233,7 @@ dependencies = [
  "bevy_common_assets 0.9.0",
  "bevy_mod_imgui",
  "bevy_rand",
+ "bevy_trauma_shake",
  "bevy_tweening",
  "doryen-fov",
  "funty",
@@ -2803,6 +2814,15 @@ dependencies = [
  "bitflags 2.4.2",
  "cfg-if",
  "libc",
+]
+
+[[package]]
+name = "noisy_bevy"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4d7bb7dbeeaf8d67dc867a550f69348f93e4d6858c751f500fcfc38e858f7b5"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]

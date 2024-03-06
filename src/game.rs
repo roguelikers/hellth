@@ -4,6 +4,7 @@ use bevy::{
     render::{camera::ScalingMode, view::RenderLayers},
 };
 use bevy_asset_loader::prelude::*;
+use bevy_trauma_shake::{Shake, ShakeSettings, TraumaPlugin};
 
 use self::{
     actions::SvarogActionsPlugin,
@@ -22,6 +23,7 @@ use self::{
 pub mod actions;
 pub mod ai;
 pub mod camera;
+pub mod character;
 pub mod feel;
 pub mod fov;
 pub mod grid;
@@ -29,6 +31,7 @@ pub mod health;
 pub mod loading;
 pub mod player;
 pub mod procgen;
+pub mod spells;
 pub mod sprite;
 pub mod sprites;
 pub mod turns;
@@ -76,6 +79,11 @@ fn start_game(mut commands: Commands, mut procgen_events: EventWriter<ProcGenEve
             },
             ..Default::default()
         },
+        Shake::default(),
+        ShakeSettings {
+            decay_per_second: 0.6,
+            ..Default::default()
+        },
         MainCameraMarker,
         RenderLayers::layer(0),
     ));
@@ -121,6 +129,7 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogPlayerPlugin)
             .add_plugins(SvarogAIPlugin)
             .add_plugins(SvarogUIPlugin)
+            .add_plugins(TraumaPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }
 }

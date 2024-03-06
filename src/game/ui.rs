@@ -33,6 +33,9 @@ fn show_status_for_world_entities(
         .position_pivot([1.0, 0.0])
         .position([width - 10.0, 10.0], imgui::Condition::Always)
         .size([300.0, 50.0], imgui::Condition::Always)
+        .resizable(false)
+        .collapsible(false)
+        .focused(false)
         .build(|| {
             ui.text(format!("{:?}", player_health));
         });
@@ -45,6 +48,9 @@ fn show_status_for_world_entities(
                 .position_pivot([1.0, 0.0])
                 .position([width - 10.0, window_y], imgui::Condition::Always)
                 .size([300.0, 50.0], imgui::Condition::Always)
+                .resizable(false)
+                .collapsible(false)
+                .focused(false)
                 .build(|| {
                     ui.text(format!("{:?}", other_health));
                 });

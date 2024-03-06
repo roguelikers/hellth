@@ -1,4 +1,5 @@
 pub mod ai_think_action;
+pub mod cast_spell_action;
 pub mod death_action;
 pub mod flee_action;
 pub mod hit_action;
@@ -13,9 +14,10 @@ use std::collections::VecDeque;
 use std::fmt::Debug;
 
 pub use {
-    ai_think_action::a_think, death_action::a_death, flee_action::a_flee, hit_action::a_hit,
-    melee_attack_action::a_melee, move_action::a_move, random_walk_action::a_random_walk,
-    switch_behaviour_action::a_behave, track_action::a_track, wait_action::a_wait,
+    ai_think_action::a_think, cast_spell_action::a_cast_spell, death_action::a_death,
+    flee_action::a_flee, hit_action::a_hit, melee_attack_action::a_melee, move_action::a_move,
+    random_walk_action::a_random_walk, switch_behaviour_action::a_behave, track_action::a_track,
+    wait_action::a_wait,
 };
 
 use bevy::prelude::*;
