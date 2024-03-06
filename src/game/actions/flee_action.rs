@@ -4,6 +4,7 @@ use crate::game::{actions::a_move, grid::WorldEntity, procgen::PlayerMarker};
 
 use super::{AbstractAction, Action};
 
+#[derive(Debug)]
 pub struct FleeAction {
     pub who: Entity,
     pub target: Entity,

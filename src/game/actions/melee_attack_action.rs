@@ -3,6 +3,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use super::*;
 use crate::game::grid::{WorldData, WorldEntity};
 
+#[derive(Debug)]
 pub struct MeleeAttackAction {
     pub entity: Entity,
     pub direction: IVec2,

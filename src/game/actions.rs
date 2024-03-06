@@ -5,23 +5,24 @@ pub mod hit_action;
 pub mod melee_attack_action;
 pub mod move_action;
 pub mod random_walk_action;
-pub mod switch_behaviour;
+pub mod switch_behaviour_action;
 pub mod track_action;
 pub mod wait_action;
 
 use std::collections::VecDeque;
+use std::fmt::Debug;
 
 pub use {
     ai_think_action::a_think, death_action::a_death, flee_action::a_flee, hit_action::a_hit,
     melee_attack_action::a_melee, move_action::a_move, random_walk_action::a_random_walk,
-    track_action::a_track, wait_action::a_wait,
+    switch_behaviour_action::a_behave, track_action::a_track, wait_action::a_wait,
 };
 
 use bevy::prelude::*;
 
 pub type AbstractAction = Box<dyn Action>;
 
-pub trait Action: Send + Sync {
+pub trait Action: Send + Sync + Debug {
     fn do_action(&self, world: &mut World) -> Vec<AbstractAction>;
 }
 

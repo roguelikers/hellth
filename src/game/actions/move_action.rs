@@ -8,6 +8,7 @@ use crate::game::{
 
 use super::*;
 
+#[derive(Debug)]
 pub struct MoveAction {
     pub entity: Entity,
     pub direction: IVec2,

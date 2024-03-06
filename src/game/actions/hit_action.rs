@@ -4,6 +4,7 @@ use crate::game::health::Health;
 
 use super::*;
 
+#[derive(Debug)]
 pub struct HitAction {
     pub attacker: Entity,
     pub target: Entity,

@@ -5,7 +5,6 @@ use bevy::{
 use doryen_fov::MapData;
 
 use crate::game::{
-    actions::ai_think_action::AIBehaviour,
     ai::{AIAgent, AIPlan},
     fov::{LastSeen, Sight},
     grid::WorldEntityBundle,
@@ -311,7 +310,7 @@ pub fn generate_level(
     player.insert((PlayerMarker, Health::new(10), TurnTaker, Sight(6)));
 
     // add "enemies"
-    for i in 1..20 {
+    for i in 1..2 {
         let index: usize = OLD_MAGE.into();
         let mut mage = commands.spawn(WorldEntityBundle::new(
             &grid,
@@ -324,7 +323,7 @@ pub fn generate_level(
 
         mage.insert((
             TurnTaker,
-            AIAgent(AIBehaviour::Standard),
+            AIAgent::default(),
             AIPlan::default(),
             Health::new(10),
             LastSeen::default(),

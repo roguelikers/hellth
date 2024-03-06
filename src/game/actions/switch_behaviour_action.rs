@@ -1,17 +1,16 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::game::ai::AIAgent;
-
-use self::ai_think_action::AIBehaviour;
+use crate::game::ai::{AIAgent, AIStrategy};
 
 use super::*;
 
+#[derive(Debug)]
 pub struct SwitchBehaviourAction {
     pub entity: Entity,
-    pub behaviour: AIBehaviour,
+    pub behaviour: AIStrategy,
 }
 
-pub fn a_behave(entity: Entity, behaviour: AIBehaviour) -> AbstractAction {
+pub fn a_behave(entity: Entity, behaviour: AIStrategy) -> AbstractAction {
     Box::new(SwitchBehaviourAction { entity, behaviour })
 }
 

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use super::{AbstractAction, Action};
 
+#[derive(Debug)]
 pub struct WaitAction;
 
 pub fn a_wait() -> AbstractAction {

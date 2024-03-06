@@ -1,12 +1,15 @@
+pub mod random_move_ai;
+pub mod standard_ai;
+
 use std::collections::VecDeque;
+use std::fmt::Debug;
 
 use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 
+use self::{random_move_ai::ai_random_move, standard_ai::ai_standard};
+
 use super::{
-    actions::{
-        ai_think_action::{AIBehaviour, AIThinkAction},
-        AbstractAction, ActionEvent,
-    },
+    actions::{ai_think_action::AIThinkAction, AbstractAction, ActionEvent},
     grid::WorldEntity,
     health::Health,
     procgen::PlayerMarker,
@@ -14,11 +17,33 @@ use super::{
     GameStates,
 };
 
+#[derive(Default, Debug, Clone, Copy)]
+pub enum AIStrategy {
+    #[default]
+    Standard,
+    RandomMove,
+}
+
+impl From<AIStrategy> for AbstractAIBehaviour {
+    fn from(value: AIStrategy) -> Self {
+        match value {
+            AIStrategy::Standard => ai_standard(),
+            AIStrategy::RandomMove => ai_random_move(),
+        }
+    }
+}
+
 #[derive(Component, Default)]
 pub struct AIPlan(pub VecDeque<AbstractAction>);
 
-#[derive(Component, Default)]
-pub struct AIAgent(pub AIBehaviour);
+#[derive(Component, Debug, Default)]
+pub struct AIAgent(pub AIStrategy);
+
+pub type AbstractAIBehaviour = Box<dyn AIBehaviour>;
+
+pub trait AIBehaviour: Send + Sync + Debug {
+    fn do_thinking(&self, entity: Entity, world: &mut World) -> Vec<AbstractAction>;
+}
 
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
@@ -42,13 +67,16 @@ pub fn ai_agents_act(
         if let Some(top) = turn_order.peek() {
             if let Ok((_world_top, ai_agent, mut ai_plan)) = non_players.get_mut(top) {
                 if ai_plan.0.is_empty() {
+                    println!("AI THINKING");
                     actions.send(ActionEvent(Box::new(AIThinkAction {
                         entity: top,
-                        behaviour: ai_agent.0,
+                        behaviour: ai_agent.0.into(),
                     })));
-                    turn_order.pushback(50);
+                    turn_order.pushback(100);
                 } else {
-                    actions.send(ActionEvent(ai_plan.0.pop_front().unwrap()));
+                    let planned = ai_plan.0.pop_front().unwrap();
+                    println!("AI NOW: {:?}, WAITING ON: {:?}", planned, ai_plan.0);
+                    actions.send(ActionEvent(planned));
                     turn_order.pushback(100);
                 }
             } else {

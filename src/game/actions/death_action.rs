@@ -11,6 +11,7 @@ use crate::game::{
 use super::*;
 use crate::game::fov::RecalculateFOVEvent;
 
+#[derive(Debug)]
 pub struct DeathAction {
     pub target: Entity,
 }

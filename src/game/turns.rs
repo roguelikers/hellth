@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use bevy_mod_imgui::ImguiContext;
 use priority_queue::PriorityQueue;
 
-use super::grid::WorldEntity;
+use super::{
+    ai::{AIAgent, AIPlan},
+    grid::WorldEntity,
+};
 
 #[derive(Component)]
 pub struct TurnTaker;
@@ -87,7 +90,7 @@ pub fn turn_order_progress(
 fn debug_turn_order(
     mut context: NonSendMut<ImguiContext>,
     turn_order: Res<TurnOrder>,
-    entities: Query<&WorldEntity>,
+    entities: Query<(&WorldEntity, Option<&AIAgent>, Option<&AIPlan>)>,
 ) {
     let ui = context.ui();
     let window = ui.window("Turn Order");
@@ -97,10 +100,25 @@ fn debug_turn_order(
         .save_settings(true)
         .build(|| {
             for (turn_taker, energy) in &turn_order.order {
+                let Ok((entity, agent, plan)) = entities.get(turn_taker.entity) else {
+                    continue;
+                };
+
+                let behaviour_name = if let Some(AIAgent(behaviour)) = agent {
+                    format!("[{:?}]", behaviour)
+                } else {
+                    "".to_string()
+                };
+
+                let plan = if let Some(AIPlan(plan)) = plan {
+                    format!("({:?})", plan)
+                } else {
+                    "".to_string()
+                };
+
                 ui.button(format!(
-                    "{} ({})",
-                    entities.get(turn_taker.entity).unwrap().name,
-                    energy.0
+                    "{} ({}) {}{}",
+                    entity.name, energy.0, behaviour_name, plan
                 ));
             }
         });
