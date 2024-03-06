@@ -6,12 +6,18 @@ use crate::game::{
     procgen::PlayerMarker,
 };
 
-use super::{melee_attack_action::MeleeAttackAction, Action};
+use super::*;
 
-#[derive(Event)]
 pub struct MoveAction {
     pub entity: Entity,
     pub direction: IVec2,
+}
+
+pub fn a_move(who: Entity, wher: IVec2) -> AbstractAction {
+    Box::new(MoveAction {
+        entity: who,
+        direction: wher,
+    })
 }
 
 enum MoveResult {
@@ -52,14 +58,7 @@ impl Action for MoveAction {
                         is_in_fov: world_data.data.is_in_fov(x, y),
                     }
                 } else {
-                    println!(
-                        "[{:?}] Turning MoveAction({:?}, {:?}) into MeleeAttackAction",
-                        self.entity, self.entity, self.direction
-                    );
-                    return vec![Box::new(MeleeAttackAction {
-                        entity: self.entity,
-                        direction: self.direction,
-                    })];
+                    return vec![a_melee(self.entity, self.direction)];
                 }
             } else {
                 // todo: push non-solid here too

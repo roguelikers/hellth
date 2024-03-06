@@ -1,24 +1,32 @@
-use bevy::prelude::*;
+use std::collections::VecDeque;
 
-use crate::game::actions::move_action::MoveAction;
+use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 
 use super::{
-    actions::ActionEvent, feel::Random, grid::WorldEntity, procgen::PlayerMarker, turns::TurnOrder,
+    actions::{
+        ai_think_action::{AIBehaviour, AIThinkAction},
+        AbstractAction, ActionEvent,
+    },
+    grid::WorldEntity,
+    health::Health,
+    procgen::PlayerMarker,
+    turns::TurnOrder,
     GameStates,
 };
 
-#[derive(Component)]
-pub struct AIAgent;
+#[derive(Component, Default)]
+pub struct AIPlan(pub VecDeque<AbstractAction>);
+
+#[derive(Component, Default)]
+pub struct AIAgent(pub AIBehaviour);
 
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    _non_players: Query<(Entity, &WorldEntity), Without<PlayerMarker>>,
-    mut rng: ResMut<Random>,
+    mut non_players: Query<(&WorldEntity, &AIAgent, &mut AIPlan), Without<PlayerMarker>>,
     mut actions: EventWriter<ActionEvent>,
 ) {
     let Ok((player_entity, _player_world)) = player.get_single() else {
-        println!("NO PLAYER!");
         return;
     };
 
@@ -32,15 +40,54 @@ pub fn ai_agents_act(
 
     while turn_order.peek() != Some(player_entity) {
         if let Some(top) = turn_order.peek() {
-            // we're going to waste their time and do nothing until we fix the player
-            actions.send(ActionEvent(Box::new(MoveAction {
-                entity: top,
-                direction: rng.gen2d(-1..2, -1..2),
-            })));
-
-            turn_order.pushback(100);
+            if let Ok((_world_top, ai_agent, mut ai_plan)) = non_players.get_mut(top) {
+                if ai_plan.0.is_empty() {
+                    actions.send(ActionEvent(Box::new(AIThinkAction {
+                        entity: top,
+                        behaviour: ai_agent.0,
+                    })));
+                    turn_order.pushback(50);
+                } else {
+                    actions.send(ActionEvent(ai_plan.0.pop_front().unwrap()));
+                    turn_order.pushback(100);
+                }
+            } else {
+                turn_order.pushback(100);
+            }
         }
     }
+}
+
+pub fn get_player(world: &mut World) -> Option<Entity> {
+    let mut world_state = SystemState::<Query<Entity, With<PlayerMarker>>>::new(world);
+    let player_query = world_state.get(world);
+    let Ok(p) = player_query.get_single() else {
+        return None;
+    };
+
+    Some(p)
+}
+
+pub fn get_positions_and_health(
+    world: &mut World,
+    entities: &[Entity],
+) -> HashMap<Entity, Option<(IVec2, Health)>> {
+    let mut world_state = SystemState::<Query<(&WorldEntity, &Health)>>::new(world);
+    let world_state_query = world_state.get(world);
+
+    let mut results = HashMap::new();
+    for entity in entities {
+        match world_state_query.get(*entity) {
+            Ok((world_entity, health)) => {
+                results.insert(*entity, Some((world_entity.position, health.clone())));
+            }
+            _ => {
+                results.insert(*entity, None);
+            }
+        }
+    }
+
+    results
 }
 
 pub struct SvarogAIPlugin;

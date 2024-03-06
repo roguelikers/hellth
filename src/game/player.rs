@@ -28,7 +28,7 @@ pub fn character_controls(
 
     if health.hitpoints.is_empty() {
         actions.send(ActionEvent(Box::new(WaitAction)));
-        let energy = turn_order.order.peek().unwrap().1 .0;
+        let energy = turn_order.order.peek().map(|e| e.1 .0).unwrap_or(100);
         turn_order.pushback(energy);
         return;
     }

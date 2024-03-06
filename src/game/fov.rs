@@ -144,7 +144,7 @@ pub fn recalculate_fov(
             // so - our edgecase says that
             //  - our last_seen position is in fov, but
             //  - our ACTUAL position isn't
-            let last_seen_pos = last_seen_at.0.unwrap();
+            let last_seen_pos = last_seen_at.0.unwrap_or_default();
             let (last_x, last_y) = grid.norm(last_seen_pos);
             let (now_x, now_y) = grid.norm(world_entity.position);
             if map.data.is_in_fov(last_x, last_y) {

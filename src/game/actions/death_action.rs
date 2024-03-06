@@ -8,12 +8,15 @@ use crate::game::{
     turns::{TurnOrder, TurnOrderEntity, TurnTaker},
 };
 
-use super::Action;
+use super::*;
 use crate::game::fov::RecalculateFOVEvent;
 
-#[derive(Event)]
 pub struct DeathAction {
     pub target: Entity,
+}
+
+pub fn a_death(who: Entity) -> AbstractAction {
+    Box::new(DeathAction { target: who })
 }
 
 impl Action for DeathAction {
@@ -36,7 +39,7 @@ impl Action for DeathAction {
 
         world_data.blocking.remove(&world_entity.position);
         sprites.index = BONES.into();
-        transform.translation.z -= 0.1;
+        transform.translation.z += 0.1;
 
         if !world_entity.is_player {
             fov_events.send(RecalculateFOVEvent);

@@ -120,7 +120,6 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogTurnPlugin)
             .add_plugins(SvarogPlayerPlugin)
             .add_plugins(SvarogAIPlugin)
-            //.add_plugins(SvarogCommandsPlugin)
             .add_plugins(SvarogUIPlugin)
             .add_systems(OnEnter(GameStates::Game), start_game);
     }

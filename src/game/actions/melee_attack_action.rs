@@ -1,16 +1,18 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::game::{
-    actions::hit_action::HitAction,
-    grid::{WorldData, WorldEntity},
-};
+use super::*;
+use crate::game::grid::{WorldData, WorldEntity};
 
-use super::Action;
-
-#[derive(Event)]
 pub struct MeleeAttackAction {
     pub entity: Entity,
     pub direction: IVec2,
+}
+
+pub fn a_melee(who: Entity, wher: IVec2) -> AbstractAction {
+    Box::new(MeleeAttackAction {
+        entity: who,
+        direction: wher,
+    })
 }
 
 impl Action for MeleeAttackAction {
@@ -41,14 +43,7 @@ impl Action for MeleeAttackAction {
             };
 
             if is_attacker_player != is_target_player {
-                println!(
-                    "[{:?}] Turning MeleeAttackAction({:?}, {:?}) into HitAction({:?}, {:?})",
-                    self.entity, self.entity, self.direction, self.entity, *other
-                );
-                vec![Box::new(HitAction {
-                    attacker: self.entity,
-                    target: *other,
-                })]
+                vec![a_hit(self.entity, *other)]
             } else {
                 vec![]
             }

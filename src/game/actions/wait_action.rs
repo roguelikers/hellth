@@ -2,13 +2,16 @@ use std::{thread, time::Duration};
 
 use bevy::prelude::*;
 
-use super::Action;
+use super::{AbstractAction, Action};
 
-#[derive(Event)]
 pub struct WaitAction;
 
+pub fn a_wait() -> AbstractAction {
+    Box::new(WaitAction)
+}
+
 impl Action for WaitAction {
-    fn do_action(&self, _world: &mut World) -> Vec<Box<dyn Action>> {
+    fn do_action(&self, _world: &mut World) -> Vec<AbstractAction> {
         thread::sleep(Duration::from_millis(18));
         vec![]
     }

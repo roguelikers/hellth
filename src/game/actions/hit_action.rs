@@ -1,13 +1,16 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::game::{actions::death_action::DeathAction, grid::WorldEntity, health::Health};
+use crate::game::health::Health;
 
-use super::Action;
+use super::*;
 
-#[derive(Event)]
 pub struct HitAction {
     pub attacker: Entity,
     pub target: Entity,
+}
+
+pub fn a_hit(attacker: Entity, target: Entity) -> AbstractAction {
+    Box::new(HitAction { attacker, target })
 }
 
 impl Action for HitAction {
@@ -22,9 +25,7 @@ impl Action for HitAction {
         target_health.normal_damage(1);
 
         if target_health.hitpoints.is_empty() {
-            vec![Box::new(DeathAction {
-                target: self.target,
-            })]
+            vec![a_death(self.target)]
         } else {
             vec![]
         }

@@ -5,7 +5,8 @@ use bevy::{
 use doryen_fov::MapData;
 
 use crate::game::{
-    ai::AIAgent,
+    actions::ai_think_action::AIBehaviour,
+    ai::{AIAgent, AIPlan},
     fov::{LastSeen, Sight},
     grid::WorldEntityBundle,
     health::Health,
@@ -302,26 +303,32 @@ pub fn generate_level(
     let mut player = commands.spawn(WorldEntityBundle::new(
         &grid,
         "Player",
-        places.pop().unwrap(),
+        places.pop().unwrap_or_default(),
         EMO_MAGE.into(),
         true,
         true,
     ));
-    player.insert((PlayerMarker, Health::new(2), TurnTaker, Sight(6)));
+    player.insert((PlayerMarker, Health::new(10), TurnTaker, Sight(6)));
 
     // add "enemies"
-    for i in 1..10 {
+    for i in 1..20 {
         let index: usize = OLD_MAGE.into();
         let mut mage = commands.spawn(WorldEntityBundle::new(
             &grid,
             format!("Mage {}", i).as_str(),
-            places.pop().unwrap(),
+            places.pop().unwrap_or_default(),
             index + rng.gen(0..7) as usize,
             true,
             false,
         ));
 
-        mage.insert((TurnTaker, AIAgent, Health::new(10), LastSeen::default()));
+        mage.insert((
+            TurnTaker,
+            AIAgent(AIBehaviour::Standard),
+            AIPlan::default(),
+            Health::new(10),
+            LastSeen::default(),
+        ));
     }
     turn_order_progress.send(TurnOrderProgressEvent);
 }
