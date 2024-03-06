@@ -285,19 +285,17 @@ pub fn generate_level(
 
     // add stuff
     // add people
-    let places = okay
-        .into_iter()
-        .filter(|f| f.distance_squared(IVec2::ZERO) <= 50)
-        .collect::<Vec<_>>();
+    let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
 
     // add player
     let mut player = commands.spawn(WorldEntityBundle::new(
         &grid,
         "Player",
-        rng.from(&places),
+        places.pop().unwrap(),
         EMO_MAGE.into(),
+        true,
     ));
-    player.insert((PlayerMarker, TurnTaker, Sight(12)));
+    player.insert((PlayerMarker, TurnTaker, Sight(6)));
 
     // add "enemies"
     for i in 1..10 {
@@ -305,10 +303,11 @@ pub fn generate_level(
         let mut mage = commands.spawn(WorldEntityBundle::new(
             &grid,
             format!("Mage {}", i).as_str(),
-            rng.from(&places),
+            places.pop().unwrap(),
             index + rng.gen(0..7) as usize,
+            true,
         ));
-        // todo: bundle these into an NPCBundle
+
         mage.insert((TurnTaker, AIAgent, LastSeen::default()));
     }
     turn_order_progress.send(TurnOrderProgressEvent);
@@ -348,7 +347,7 @@ impl Plugin for SvarogProcgenPlugin {
             .add_systems(Update, generate_level.run_if(on_event::<ProcGenEvent>()))
             .add_systems(Update, on_new_fov_added.run_if(in_state(GameStates::Game)))
             .add_systems(
-                PostUpdate,
+                Last,
                 recalculate_fov
                     .run_if(on_event::<RecalculateFOVEvent>())
                     .run_if(in_state(GameStates::Game)),

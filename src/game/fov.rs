@@ -35,6 +35,7 @@ pub fn recalculate_fov(
     mut last_seen: Query<&mut LastSeen>,
     mut sprites: Query<&mut TextureAtlasSprite>,
     mut visibility: Query<&mut Visibility>,
+    mut fov: Local<FovRecursiveShadowCasting>,
 ) {
     if !recalc_event.is_empty() {
         recalc_event.clear();
@@ -53,8 +54,6 @@ pub fn recalculate_fov(
     let Ok((player_in_world, sight)) = &player_entity.get_single() else {
         return;
     };
-
-    let mut fov = FovRecursiveShadowCasting::new();
 
     map.data.clear_fov();
 
@@ -126,7 +125,7 @@ pub fn recalculate_fov(
                     *last_seen_at = LastSeen(Some(world_entity.position));
                 } else {
                     // last in sight but current isn't - REMOVE! this is a mirage
-                    *vis = Visibility::Visible;
+                    *vis = Visibility::Hidden;
                     sprite.color = Color::RED;
                     transform.translation =
                         grid.get_tile_position(world_entity.position).translation;
@@ -136,7 +135,7 @@ pub fn recalculate_fov(
                 if map.data.is_in_fov(now_x, now_y) {
                     // last not in sight but current is! - MOVE
                     *vis = Visibility::Visible;
-                    sprite.color = Color::WHITE;
+                    sprite.color = Color::rgba(0.0, 0.0, 0.0, 0.0);
                     transform.translation =
                         grid.get_tile_position(world_entity.position).translation;
                     *last_seen_at = LastSeen(Some(world_entity.position));

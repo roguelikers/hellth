@@ -1,18 +1,19 @@
 use bevy::{
-    app::Plugin,
+    app::{Plugin, Update},
     asset::Handle,
     ecs::{
         bundle::Bundle,
         component::Component,
         entity::Entity,
-        schedule::{NextState, OnEnter, OnExit},
-        system::{Commands, Res, ResMut, Resource},
+        query::Added,
+        schedule::{common_conditions::in_state, IntoSystemConfigs, NextState, OnEnter, OnExit},
+        system::{Commands, Query, Res, ResMut, Resource},
     },
     math::{IVec2, Vec3},
     render::view::{RenderLayers, Visibility},
     sprite::{SpriteSheetBundle, TextureAtlas, TextureAtlasSprite},
     transform::components::Transform,
-    utils::{HashMap, HashSet},
+    utils::{hashbrown::HashMap, HashSet},
 };
 use doryen_fov::MapData;
 
@@ -36,6 +37,7 @@ pub struct WorldEntity {
     pub name: String,
     pub position: IVec2,
     pub sprite_index: usize,
+    pub blocking: bool,
 }
 
 #[derive(Component)]
@@ -51,15 +53,22 @@ pub struct WorldEntityBundle {
 }
 
 impl WorldEntityBundle {
-    pub fn new(grid: &Res<Grid>, name: &str, pos: IVec2, index: usize) -> Self {
+    pub fn new(
+        grid: &Res<Grid>,
+        name: &str,
+        pos: IVec2,
+        sprite_index: usize,
+        blocking: bool,
+    ) -> Self {
         WorldEntityBundle {
             entity: WorldEntity {
                 name: name.to_string(),
                 position: pos,
-                sprite_index: index,
+                sprite_index,
+                blocking,
             },
             sprite: SpriteSheetBundle {
-                sprite: TextureAtlasSprite::new(index),
+                sprite: TextureAtlasSprite::new(sprite_index),
                 texture_atlas: grid.atlas.clone_weak(),
                 transform: grid.get_tile_position(pos),
                 ..Default::default()
@@ -67,6 +76,23 @@ impl WorldEntityBundle {
             marker: WorldEntityMarker,
             layer: RenderLayers::layer(1),
             fov: FOV,
+        }
+    }
+}
+
+fn on_world_entity_placed(
+    world_data: Option<ResMut<WorldData>>,
+    world_entities: Query<(Entity, &WorldEntity), Added<WorldEntity>>,
+) {
+    let Some(mut world_data) = world_data else {
+        return;
+    };
+
+    for (new_entity, world_entity) in &world_entities {
+        if world_entity.blocking {
+            world_data
+                .blocking
+                .insert(world_entity.position, new_entity);
         }
     }
 }
@@ -92,6 +118,7 @@ pub struct WorldData {
     pub data: MapData,
     pub solid: HashSet<IVec2>,
     pub memory: HashSet<IVec2>,
+    pub blocking: HashMap<IVec2, Entity>,
 }
 
 #[derive(Component, Default, Clone, Copy, PartialEq)]
@@ -143,6 +170,7 @@ fn create_grid_resource(mut commands: Commands, assets: Res<GameAssets>) {
         data: MapData::new(122, 64),
         solid: Default::default(),
         memory: Default::default(),
+        blocking: Default::default(),
     });
 }
 
@@ -168,6 +196,10 @@ pub struct SvarogGridPlugin;
 impl Plugin for SvarogGridPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
         bevy.add_systems(OnExit(GameStates::AssetLoading), create_grid_resource)
+            .add_systems(
+                Update,
+                on_world_entity_placed.run_if(in_state(GameStates::Game)),
+            )
             .add_systems(OnEnter(GameStates::Setup), initialize_grid);
     }
 }

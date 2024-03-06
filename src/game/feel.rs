@@ -29,6 +29,15 @@ impl Random {
     pub fn gen2d(&mut self, x: Range<i32>, y: Range<i32>) -> IVec2 {
         IVec2::new(self.gen(x), self.gen(y))
     }
+
+    pub fn shuffle<T>(&mut self, mut v: Vec<T>) -> Vec<T> {
+        let l = v.len();
+        for i in 0..l {
+            v.swap(i, self.gen(0..l as i32) as usize);
+        }
+
+        v
+    }
 }
 
 pub struct SvarogFeelPlugin;
