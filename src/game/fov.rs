@@ -3,6 +3,7 @@ use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting};
 
 use super::{
     grid::{Grid, WorldData, WorldEntity, FOV},
+    health::Health,
     procgen::PlayerMarker,
 };
 
@@ -28,7 +29,7 @@ pub fn on_new_fov_added(
 #[allow(clippy::collapsible_else_if)]
 pub fn recalculate_fov(
     mut recalc_event: EventReader<RecalculateFOVEvent>,
-    player_entity: Query<(&WorldEntity, &Sight), With<PlayerMarker>>,
+    player_entity: Query<(&WorldEntity, &Health, &Sight), With<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     map: Option<ResMut<WorldData>>,
     mut non_players: Query<(Entity, &WorldEntity, &mut Transform), Without<PlayerMarker>>,
@@ -51,9 +52,41 @@ pub fn recalculate_fov(
         return;
     };
 
-    let Ok((player_in_world, sight)) = &player_entity.get_single() else {
+    let Ok((player_in_world, health, sight)) = &player_entity.get_single() else {
         return;
     };
+
+    if health.hitpoints.is_empty() {
+        grid.entities.iter().for_each(|(_pos, e)| {
+            let Ok(mut vis) = visibility.get_mut(*e) else {
+                return;
+            };
+
+            let Ok(mut sprite) = sprites.get_mut(*e) else {
+                return;
+            };
+
+            *vis = Visibility::Visible;
+            sprite.color = Color::ORANGE_RED;
+        });
+
+        for (non_player_entity, world_entity, mut transform) in &mut non_players {
+            transform.translation = grid.get_tile_position(world_entity.position).translation;
+
+            let Ok(mut vis) = visibility.get_mut(non_player_entity) else {
+                return;
+            };
+
+            let Ok(mut sprite) = sprites.get_mut(non_player_entity) else {
+                return;
+            };
+
+            *vis = Visibility::Visible;
+            sprite.color = Color::RED;
+        }
+
+        return;
+    }
 
     map.data.clear_fov();
 
@@ -97,7 +130,6 @@ pub fn recalculate_fov(
         let Ok(mut sprite) = sprites.get_mut(non_player_entity) else {
             return;
         };
-
         if last_seen_at.0.is_none() {
             let (x, y) = grid.norm(world_entity.position);
             if map.data.is_in_fov(x, y) {

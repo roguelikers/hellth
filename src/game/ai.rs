@@ -1,4 +1,4 @@
-use bevy::{prelude::*, utils::HashMap};
+use bevy::prelude::*;
 
 use crate::game::actions::move_action::MoveAction;
 
@@ -13,11 +13,12 @@ pub struct AIAgent;
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    non_players: Query<(Entity, &WorldEntity), Without<PlayerMarker>>,
+    _non_players: Query<(Entity, &WorldEntity), Without<PlayerMarker>>,
     mut rng: ResMut<Random>,
     mut actions: EventWriter<ActionEvent>,
 ) {
-    let Ok((player_entity, player_world)) = player.get_single() else {
+    let Ok((player_entity, _player_world)) = player.get_single() else {
+        println!("NO PLAYER!");
         return;
     };
 
@@ -31,7 +32,6 @@ pub fn ai_agents_act(
 
     while turn_order.peek() != Some(player_entity) {
         if let Some(top) = turn_order.peek() {
-            println!("Top: {:?}", top);
             // we're going to waste their time and do nothing until we fix the player
             actions.send(ActionEvent(Box::new(MoveAction {
                 entity: top,

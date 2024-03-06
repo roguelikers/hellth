@@ -6,7 +6,7 @@ use crate::game::{
     procgen::PlayerMarker,
 };
 
-use super::Action;
+use super::{melee_attack_action::MeleeAttackAction, Action};
 
 #[derive(Event)]
 pub struct MoveAction {
@@ -26,6 +26,10 @@ enum MoveResult {
 
 impl Action for MoveAction {
     fn do_action(&self, world: &mut World) -> Vec<Box<dyn Action>> {
+        if self.direction == IVec2::ZERO {
+            return vec![];
+        }
+
         // this is the read-only part
         let move_result = {
             let mut read_system_state =
@@ -40,13 +44,22 @@ impl Action for MoveAction {
             let next_position = *position + self.direction;
             let (x, y) = grid.norm(next_position);
 
-            if !world_data.solid.contains(&next_position)
-                && !world_data.blocking.contains_key(&next_position)
-            {
-                MoveResult::MoveSucceed {
-                    next_position,
-                    new_transform: grid.get_tile_position(next_position),
-                    is_in_fov: world_data.data.is_in_fov(x, y),
+            if !world_data.solid.contains(&next_position) {
+                if !world_data.blocking.contains_key(&next_position) {
+                    MoveResult::MoveSucceed {
+                        next_position,
+                        new_transform: grid.get_tile_position(next_position),
+                        is_in_fov: world_data.data.is_in_fov(x, y),
+                    }
+                } else {
+                    println!(
+                        "[{:?}] Turning MoveAction({:?}, {:?}) into MeleeAttackAction",
+                        self.entity, self.entity, self.direction
+                    );
+                    return vec![Box::new(MeleeAttackAction {
+                        entity: self.entity,
+                        direction: self.direction,
+                    })];
                 }
             } else {
                 // todo: push non-solid here too

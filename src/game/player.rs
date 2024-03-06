@@ -1,8 +1,9 @@
 use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
 use super::{
-    actions::{move_action::MoveAction, ActionEvent},
+    actions::{move_action::MoveAction, wait_action::WaitAction, ActionEvent},
     grid::{WorldData, WorldEntity},
+    health::Health,
     procgen::PlayerMarker,
     turns::TurnOrder,
     GameStates,
@@ -12,7 +13,7 @@ pub fn character_controls(
     mut turn_order: ResMut<TurnOrder>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
-    player_query: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
+    player_query: Query<(Entity, &WorldEntity, &Health), With<PlayerMarker>>,
     mut actions: EventWriter<ActionEvent>,
 ) {
     if let Some(e) = turn_order.peek() {
@@ -21,9 +22,16 @@ pub fn character_controls(
         }
     }
 
-    let Ok((entity, player_game_entity)) = player_query.get_single() else {
+    let Ok((entity, player_game_entity, health)) = player_query.get_single() else {
         return;
     };
+
+    if health.hitpoints.is_empty() {
+        actions.send(ActionEvent(Box::new(WaitAction)));
+        let energy = turn_order.order.peek().unwrap().1 .0;
+        turn_order.pushback(energy);
+        return;
+    }
 
     let maybe_move = if keys.just_pressed(KeyCode::Up) {
         Some(IVec2::new(0, 1))

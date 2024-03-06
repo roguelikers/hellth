@@ -3,6 +3,7 @@ use bevy_mod_imgui::ImguiContext;
 
 use super::{
     grid::{Grid, WorldData, WorldEntity},
+    health::Health,
     procgen::PlayerMarker,
     GameStates,
 };
@@ -10,8 +11,8 @@ use super::{
 pub struct SvarogUIPlugin;
 
 fn show_status_for_world_entities(
-    player_entity: Query<&WorldEntity, With<PlayerMarker>>,
-    world_entities: Query<&WorldEntity, Without<PlayerMarker>>,
+    player_entity: Query<(&WorldEntity, &Health), With<PlayerMarker>>,
+    world_entities: Query<(&WorldEntity, &Health), Without<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     world: Res<WorldData>,
     mut context: NonSendMut<ImguiContext>,
@@ -19,12 +20,12 @@ fn show_status_for_world_entities(
     let Some(grid) = grid else {
         return;
     };
-    // vscode/rust-analzyer chose to pull and fetch some packages at this random moment, and we're halted :D
+
     let ui = context.ui();
 
-    let [width, height] = ui.io().display_size;
+    let [width, _height] = ui.io().display_size;
 
-    let Ok(player) = player_entity.get_single() else {
+    let Ok((player, player_health)) = player_entity.get_single() else {
         return;
     };
 
@@ -32,17 +33,21 @@ fn show_status_for_world_entities(
         .position_pivot([1.0, 0.0])
         .position([width - 10.0, 10.0], imgui::Condition::Always)
         .size([300.0, 50.0], imgui::Condition::Always)
-        .build(|| {});
+        .build(|| {
+            ui.text(format!("{:?}", player_health));
+        });
 
     let mut window_y = 65.0f32;
-    for other_entity in &world_entities {
+    for (other_entity, other_health) in &world_entities {
         let (x, y) = grid.norm(other_entity.position);
         if world.data.is_in_fov(x, y) {
             ui.window(&other_entity.name)
                 .position_pivot([1.0, 0.0])
                 .position([width - 10.0, window_y], imgui::Condition::Always)
                 .size([300.0, 50.0], imgui::Condition::Always)
-                .build(|| {});
+                .build(|| {
+                    ui.text(format!("{:?}", other_health));
+                });
 
             window_y += 55.0;
         }

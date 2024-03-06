@@ -129,9 +129,9 @@ pub struct SvarogCameraPlugin;
 impl Plugin for SvarogCameraPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
         bevy.insert_resource(CameraSettings {
-            tracking_speed: 1024.0,
-            tracking_distance: 80.0,
-            stop_tracking_under: 32.0,
+            tracking_speed: 512.0,
+            tracking_distance: 120.0,
+            stop_tracking_under: 16.0,
             smooth_camera_track: true,
         })
         .add_systems(PostUpdate, track_camera.run_if(in_state(GameStates::Game)))

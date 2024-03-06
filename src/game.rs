@@ -25,6 +25,7 @@ pub mod camera;
 pub mod feel;
 pub mod fov;
 pub mod grid;
+pub mod health;
 pub mod loading;
 pub mod player;
 pub mod procgen;

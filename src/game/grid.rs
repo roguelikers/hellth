@@ -38,6 +38,7 @@ pub struct WorldEntity {
     pub position: IVec2,
     pub sprite_index: usize,
     pub blocking: bool,
+    pub is_player: bool,
 }
 
 #[derive(Component)]
@@ -59,6 +60,7 @@ impl WorldEntityBundle {
         pos: IVec2,
         sprite_index: usize,
         blocking: bool,
+        is_player: bool,
     ) -> Self {
         WorldEntityBundle {
             entity: WorldEntity {
@@ -66,6 +68,7 @@ impl WorldEntityBundle {
                 position: pos,
                 sprite_index,
                 blocking,
+                is_player,
             },
             sprite: SpriteSheetBundle {
                 sprite: TextureAtlasSprite::new(sprite_index),
@@ -109,7 +112,8 @@ impl Grid {
     pub fn norm(&self, tile: IVec2) -> (usize, usize) {
         let x = (tile.x + self.size.x / 2 + 1) as usize;
         let y = (tile.y + self.size.y / 2 + 1) as usize;
-        (x, y)
+
+        (x.min(self.size.x as usize), y.min(self.size.y as usize))
     }
 }
 
@@ -134,7 +138,7 @@ impl Grid {
         Transform::from_translation(Vec3::new(
             (self.tile.x * position.x) as f32,
             (self.tile.y * position.y) as f32,
-            0.0,
+            1.0,
         ))
     }
 

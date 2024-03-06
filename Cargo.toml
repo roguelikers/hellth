@@ -21,6 +21,7 @@ bevy_mod_imgui = "0.2.1"
 
 doryen-fov="*"
 priority-queue = "2.0.2"
+pathfinding = "4.9.1"
 
 [features]
 debug_mode = []

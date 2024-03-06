@@ -27,6 +27,8 @@ pub const WALL4: Tile = Tile(17, 10);
 pub const WALL5: Tile = Tile(18, 10);
 pub const WALL6: Tile = Tile(18, 11);
 
+pub const BONES: Tile = Tile(15, 0);
+
 pub const INTERIOR_FLOOR1: Tile = Tile(0, 16);
 pub const INTERIOR_FLOOR2: Tile = Tile(0, 17);
 

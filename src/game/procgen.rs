@@ -8,6 +8,7 @@ use crate::game::{
     ai::AIAgent,
     fov::{LastSeen, Sight},
     grid::WorldEntityBundle,
+    health::Health,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
     turns::TurnTaker,
@@ -107,7 +108,7 @@ pub fn generate_level(
         rng: &mut ResMut<Random>,
         grid: &Res<Grid>,
         map: &mut ResMut<WorldData>,
-        okay: &HashSet<IVec2>,
+        okay: &mut HashSet<IVec2>,
     ) {
         let forest_tiles = Tiles::default()
             .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
@@ -151,6 +152,8 @@ pub fn generate_level(
                         if passability == Passability::Blocking {
                             map.solid.insert(pos);
                         }
+
+                        okay.remove(&pos);
 
                         map.data.set_transparent(
                             (pos.x + grid.size.x / 2 + 1) as usize,
@@ -271,7 +274,7 @@ pub fn generate_level(
         commands.entity(entity).despawn_recursive();
     }
 
-    let okay = clear_grid(
+    let mut okay = clear_grid(
         &grid,
         &mut rng,
         &mut map,
@@ -280,7 +283,15 @@ pub fn generate_level(
         &mut sprites,
     );
 
-    make_obstructions(&mut commands, 20, size, &mut rng, &grid, &mut map, &okay);
+    make_obstructions(
+        &mut commands,
+        20,
+        size,
+        &mut rng,
+        &grid,
+        &mut map,
+        &mut okay,
+    );
     make_houses(&mut commands, 40, size, &mut rng, &grid, &mut map, &okay);
 
     // add stuff
@@ -294,8 +305,9 @@ pub fn generate_level(
         places.pop().unwrap(),
         EMO_MAGE.into(),
         true,
+        true,
     ));
-    player.insert((PlayerMarker, TurnTaker, Sight(6)));
+    player.insert((PlayerMarker, Health::new(2), TurnTaker, Sight(6)));
 
     // add "enemies"
     for i in 1..10 {
@@ -306,9 +318,10 @@ pub fn generate_level(
             places.pop().unwrap(),
             index + rng.gen(0..7) as usize,
             true,
+            false,
         ));
 
-        mage.insert((TurnTaker, AIAgent, LastSeen::default()));
+        mage.insert((TurnTaker, AIAgent, Health::new(10), LastSeen::default()));
     }
     turn_order_progress.send(TurnOrderProgressEvent);
 }

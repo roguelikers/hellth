@@ -1,4 +1,8 @@
+pub mod death_action;
+pub mod hit_action;
+pub mod melee_attack_action;
 pub mod move_action;
+pub mod wait_action;
 
 use std::collections::VecDeque;
 
