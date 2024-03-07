@@ -44,22 +44,27 @@ impl Action for MoveAction {
         // this is the read-only part
         let move_result = {
             let mut read_system_state =
-                SystemState::<(Res<Grid>, Res<WorldData>, Query<&WorldEntity>)>::new(world);
+                SystemState::<(Res<Grid>, Res<WorldData>, Query<(&WorldEntity, &Transform)>)>::new(
+                    world,
+                );
 
             let (grid, world_data, world_entities) = read_system_state.get(world);
 
-            let Ok(WorldEntity { position, .. }) = world_entities.get(self.entity) else {
+            let Ok((WorldEntity { position, .. }, transform)) = world_entities.get(self.entity)
+            else {
                 return vec![];
             };
 
             let next_position = *position + self.direction;
             let (x, y) = grid.norm(next_position);
+            let mut new_transform = grid.get_tile_position(next_position);
+            new_transform.translation.z = transform.translation.z;
 
             if !world_data.solid.contains(&next_position) {
                 if !world_data.blocking.contains_key(&next_position) {
                     MoveResult::MoveSucceed {
                         next_position,
-                        new_transform: grid.get_tile_position(next_position),
+                        new_transform,
                         is_in_fov: world_data.data.is_in_fov(x, y),
                     }
                 } else {

@@ -90,7 +90,7 @@ pub fn turn_order_progress(
 fn debug_turn_order(
     mut context: NonSendMut<ImguiContext>,
     turn_order: Res<TurnOrder>,
-    entities: Query<(&WorldEntity, Option<&AIAgent>, Option<&PendingActions>)>,
+    living: Query<(&WorldEntity, Option<&AIAgent>, Option<&PendingActions>)>,
 ) {
     let ui = context.ui();
     let window = ui.window("Turn Order");
@@ -100,7 +100,7 @@ fn debug_turn_order(
         .save_settings(true)
         .build(|| {
             for (turn_taker, energy) in &turn_order.order {
-                let Ok((entity, agent, plan)) = entities.get(turn_taker.entity) else {
+                let Ok((entity, agent, plan)) = living.get(turn_taker.entity) else {
                     continue;
                 };
 
@@ -124,6 +124,25 @@ fn debug_turn_order(
         });
 }
 
+fn debug_all_entities(
+    mut context: NonSendMut<ImguiContext>,
+    mut entities: Query<(&WorldEntity, &mut Transform)>,
+) {
+    let ui = context.ui();
+    let window = ui.window("All Entities");
+
+    window
+        .size([100.0, 300.0], imgui::Condition::FirstUseEver)
+        .save_settings(true)
+        .build(|| {
+            for (entity, mut transform) in &mut entities {
+                if ui.button(format!("{} at {:?}", &entity.name, transform)) {
+                    transform.translation.z += 1.0;
+                }
+            }
+        });
+}
+
 pub struct SvarogTurnPlugin;
 impl Plugin for SvarogTurnPlugin {
     fn build(&self, bevy: &mut App) {
@@ -134,6 +153,6 @@ impl Plugin for SvarogTurnPlugin {
                 Update,
                 (add_entity_to_turn_queue, turn_order_progress).chain(),
             )
-            .add_systems(Update, debug_turn_order);
+            .add_systems(Update, (debug_turn_order, debug_all_entities));
     }
 }

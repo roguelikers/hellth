@@ -3,8 +3,10 @@ pub mod cast_spell_action;
 pub mod death_action;
 pub mod flee_action;
 pub mod hit_action;
+pub mod leave_bones_action;
 pub mod melee_attack_action;
 pub mod move_action;
+pub mod pickup_action;
 pub mod random_walk_action;
 pub mod switch_behaviour_action;
 pub mod track_action;
@@ -17,7 +19,8 @@ use super::character::CharacterStat;
 
 pub use {
     ai_think_action::a_think, cast_spell_action::a_cast_spell, death_action::a_death,
-    flee_action::a_flee, hit_action::a_hit, melee_attack_action::a_melee, move_action::a_move,
+    flee_action::a_flee, hit_action::a_hit, leave_bones_action::a_leave_bones,
+    melee_attack_action::a_melee, move_action::a_move, pickup_action::a_pickup,
     random_walk_action::a_random_walk, switch_behaviour_action::a_behave, track_action::a_track,
     wait_action::a_wait,
 };
@@ -43,21 +46,21 @@ fn handle_gameplay_action(world: &mut World) {
         return;
     };
 
-    println!("HANDLE =====================================================");
+    // println!("HANDLE =====================================================");
     let mut reactions = VecDeque::new();
     for ev in events {
         {
-            println!("  {:?}", ev.0);
+            //println!("  {:?}", ev.0);
             reactions.extend(ev.0.do_action(world));
             while !reactions.is_empty() {
                 let reaction = reactions.pop_front().unwrap();
-                println!("    {:?}", reaction);
+                //println!("    {:?}", reaction);
                 let more_reactions = reaction.do_action(world);
                 reactions.extend(more_reactions);
             }
         }
     }
-    println!("DONE =====================================================");
+    // println!("DONE =====================================================");
 }
 
 pub struct SvarogActionsPlugin;

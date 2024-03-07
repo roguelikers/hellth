@@ -91,10 +91,10 @@ pub fn ai_agents_act(
 
                 if let Some(action) = taken_action {
                     let cost = character.calculate_cost(action.0.get_affiliated_stat());
-                    println!(
-                        "{:?} ({} energy) decides to do {:?} for {} energy",
-                        world_entity.name, current_energy.0, action.0, cost
-                    );
+                    // println!(
+                    //     "{:?} ({} energy) decides to do {:?} for {} energy",
+                    //     world_entity.name, current_energy.0, action.0, cost
+                    // );
                     turn_order.pushback(cost);
                     actions.send(action);
                 }

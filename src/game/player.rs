@@ -1,13 +1,18 @@
-use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
+use bevy::{
+    prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem,
+    window::PrimaryWindow,
+};
+use bevy_mouse_tracking_plugin::MousePosWorld;
 
 use crate::game::{actions::a_move, turns::TurnOrderEntity};
 
 use super::{
-    actions::{a_wait, ActionEvent},
+    actions::{a_pickup, a_wait, ActionEvent},
     ai::PendingActions,
     character::Character,
     grid::{WorldData, WorldEntity},
     health::Health,
+    inventory::{CarriedMarker, Item},
     procgen::PlayerMarker,
     turns::TurnOrder,
     GameStates,
@@ -65,6 +70,7 @@ fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
 
 #[allow(clippy::type_complexity)]
 pub fn character_controls(
+    mouse: Res<MousePosWorld>,
     mut turn_order: ResMut<TurnOrder>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
@@ -78,6 +84,10 @@ pub fn character_controls(
             &mut PlayerState,
         ),
         With<PlayerMarker>,
+    >,
+    item_query: Query<
+        (Entity, &WorldEntity, &Item),
+        (Without<PlayerMarker>, Without<CarriedMarker>),
     >,
     mut actions: EventWriter<ActionEvent>,
 ) {
@@ -93,6 +103,7 @@ pub fn character_controls(
         return;
     };
 
+    //println!("{:?} {:?}", mouse, player_game_entity.position);
     let mut taken_action: Option<ActionEvent> = None;
 
     if let Some(next_action) = pending_actions.0.pop_front() {
@@ -117,6 +128,26 @@ pub fn character_controls(
                         .contains(&(player_game_entity.position + direction))
                     {
                         taken_action = Some(ActionEvent(a_move(entity, direction)));
+                    }
+                } else if keys.just_pressed(KeyCode::Comma) || keys.just_pressed(KeyCode::Space) {
+                    let items = item_query
+                        .iter()
+                        .filter(|(e, w, i)| w.position == player_game_entity.position)
+                        .collect::<Vec<_>>();
+
+                    #[allow(clippy::comparison_chain)]
+                    if items.len() > 1 {
+                        println!("Choose what to pick up: ");
+                        for (n, item) in items.iter().enumerate() {
+                            println!("  {}: {}", n + 1, item.2.name);
+                        }
+                    } else if items.len() == 1 {
+                        taken_action = Some(ActionEvent(a_pickup(
+                            entity,
+                            items.iter().map(|i| i.0).collect::<Vec<_>>(),
+                        )));
+                    } else {
+                        println!("Nothing to pick up");
                     }
                 } else if keys.just_pressed(KeyCode::T) {
                     println!("Choose thy thaum");
@@ -150,14 +181,14 @@ pub fn character_controls(
 
     if let Some(action) = taken_action {
         let cost = character.calculate_cost(action.0.get_affiliated_stat());
-        let current_energy = turn_order
-            .order
-            .get_priority(&TurnOrderEntity { entity })
-            .unwrap();
-        println!(
-            "{:?} ({} energy) decides to do {:?} for {} energy",
-            "Player", current_energy.0, action.0, cost
-        );
+        // let current_energy = turn_order
+        //     .order
+        //     .get_priority(&TurnOrderEntity { entity })
+        //     .unwrap();
+        // println!(
+        //     "{:?} ({} energy) decides to do {:?} for {} energy",
+        //     "Player", current_energy.0, action.0, cost
+        // );
         turn_order.pushback(cost);
         actions.send(action);
     }

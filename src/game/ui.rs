@@ -1,5 +1,9 @@
 use bevy::prelude::*;
 use bevy_mod_imgui::ImguiContext;
+use bevy_mod_picking::{
+    events::{Click, Over, Pointer},
+    prelude::ListenerInput,
+};
 
 use super::{
     character::Character,
@@ -9,7 +13,28 @@ use super::{
     GameStates,
 };
 
-pub struct SvarogUIPlugin;
+#[derive(Event, Debug)]
+pub struct ShowEntityDetails(Entity, f32);
+
+impl From<ListenerInput<Pointer<Click>>> for ShowEntityDetails {
+    fn from(event: ListenerInput<Pointer<Click>>) -> Self {
+        ShowEntityDetails(event.target, event.hit.depth)
+    }
+}
+
+pub fn on_show_details(
+    mut show_details: EventReader<ShowEntityDetails>,
+    world_entities: Query<&WorldEntity>,
+) {
+    for detail in show_details.read() {
+        if let Ok(world_entity) = world_entities.get(detail.0) {
+            println!(
+                "Show Detail for {:?} at {:?}: {}",
+                detail, world_entity.position, world_entity.name
+            );
+        }
+    }
+}
 
 fn show_status_for_world_entities(
     player_entity: Query<(&WorldEntity, &Character, &Health), With<PlayerMarker>>,
@@ -63,11 +88,19 @@ fn show_status_for_world_entities(
     }
 }
 
+pub struct SvarogUIPlugin;
+
 impl Plugin for SvarogUIPlugin {
     fn build(&self, bevy: &mut App) {
+        bevy.add_event::<ShowEntityDetails>();
         bevy.add_systems(
             Update,
             show_status_for_world_entities.run_if(in_state(GameStates::Game)),
+        );
+
+        bevy.add_systems(
+            Update,
+            on_show_details.run_if(on_event::<ShowEntityDetails>()),
         );
     }
 }

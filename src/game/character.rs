@@ -2,6 +2,8 @@ use bevy::prelude::*;
 use std::fmt::Debug;
 use std::ops::Index;
 
+use super::feel::Random;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum CharacterStat {
     STR,
@@ -65,6 +67,31 @@ impl Index<CharacterStat> for Character {
 }
 
 impl Character {
+    pub fn random(rng: &mut ResMut<Random>) -> Self {
+        let vals = [
+            [3, 3, 3, 3, 3, 4],
+            [3, 3, 3, 3, 3, 5],
+            [2, 2, 3, 3, 3, 3],
+            [1, 3, 3, 3, 3, 7],
+            [3, 3, 3, 4, 5, 2],
+            [3, 3, 5, 2, 2, 5],
+            [6, 4, 2, 2, 3, 1],
+            [1, 2, 3, 3, 4, 5],
+        ];
+
+        let vals = rng.from(&vals);
+        let vals = rng.shuffle(Vec::from(vals));
+
+        Self {
+            strength: vals[0],
+            arcane: vals[1],
+            intelligence: vals[2],
+            wisdom: vals[3],
+            willpower: vals[4],
+            agility: vals[5],
+        }
+    }
+
     pub fn calculate_cost(&self, stat: CharacterStat) -> i32 {
         match self[stat] {
             i32::MIN..=0_i32 => 200,

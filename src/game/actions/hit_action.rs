@@ -34,9 +34,9 @@ impl Action for HitAction {
         target_health.normal_damage(1);
 
         if player_query.contains(self.target) {
-            shake_query.single_mut().add_trauma(0.25);
+            shake_query.single_mut().add_trauma(0.05);
         } else {
-            shake_query.single_mut().add_trauma(0.15);
+            shake_query.single_mut().add_trauma(0.02);
         }
 
         if target_health.hitpoints.is_empty() {

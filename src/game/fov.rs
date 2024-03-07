@@ -4,6 +4,7 @@ use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting};
 use super::{
     grid::{Grid, WorldData, WorldEntity, FOV},
     health::Health,
+    inventory::CarriedMarker,
     procgen::PlayerMarker,
 };
 
@@ -30,7 +31,7 @@ pub fn recalculate_fov(
     grid: Option<Res<Grid>>,
     map: Option<ResMut<WorldData>>,
     mut non_players: Query<(Entity, &WorldEntity, &mut Transform), Without<PlayerMarker>>,
-
+    carried: Query<&CarriedMarker>,
     mut sprites: Query<&mut TextureAtlasSprite>,
     mut visibility: Query<&mut Visibility>,
     mut fov: Local<FovRecursiveShadowCasting>,
@@ -121,9 +122,13 @@ pub fn recalculate_fov(
         };
 
         let Ok(mut sprite) = sprites.get_mut(non_player_entity) else {
-            return;
+            continue;
         };
         let (x, y) = grid.norm(world_entity.position);
+
+        if carried.contains(non_player_entity) {
+            continue;
+        }
 
         if map.data.is_in_fov(x, y) {
             *vis = Visibility::Visible;

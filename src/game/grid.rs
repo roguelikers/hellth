@@ -53,27 +53,75 @@ pub struct WorldEntityBundle {
     pub fov: FOV,
 }
 
+#[derive(PartialEq, Eq)]
+pub enum WorldEntityKind {
+    Player,
+    NPC,
+    Item,
+}
+
 impl WorldEntityBundle {
-    pub fn new(
-        grid: &Res<Grid>,
+    pub fn new_raw(
+        mut transform: Transform,
+        atlas: Handle<TextureAtlas>,
         name: &str,
         pos: IVec2,
         sprite_index: usize,
         blocking: bool,
-        is_player: bool,
+        kind: WorldEntityKind,
     ) -> Self {
+        transform.translation.z += match kind {
+            WorldEntityKind::Player => 10.0,
+            WorldEntityKind::NPC => 5.0,
+            WorldEntityKind::Item => 1.0,
+        };
         WorldEntityBundle {
             entity: WorldEntity {
                 name: name.to_string(),
                 position: pos,
                 sprite_index,
                 blocking,
-                is_player,
+                is_player: kind == WorldEntityKind::Player,
+            },
+            sprite: SpriteSheetBundle {
+                sprite: TextureAtlasSprite::new(sprite_index),
+                texture_atlas: atlas.clone_weak(),
+                transform,
+                ..Default::default()
+            },
+            marker: WorldEntityMarker,
+            layer: RenderLayers::layer(1),
+            fov: FOV,
+        }
+    }
+
+    pub fn new(
+        grid: &Res<Grid>,
+        name: &str,
+        pos: IVec2,
+        sprite_index: usize,
+        blocking: bool,
+        kind: WorldEntityKind,
+    ) -> Self {
+        let mut transform = grid.get_tile_position(pos);
+        transform.translation.z += match kind {
+            WorldEntityKind::Player => 10.0,
+            WorldEntityKind::NPC => 5.0,
+            WorldEntityKind::Item => 1.0,
+        };
+
+        WorldEntityBundle {
+            entity: WorldEntity {
+                name: name.to_string(),
+                position: pos,
+                sprite_index,
+                blocking,
+                is_player: kind == WorldEntityKind::Player,
             },
             sprite: SpriteSheetBundle {
                 sprite: TextureAtlasSprite::new(sprite_index),
                 texture_atlas: grid.atlas.clone_weak(),
-                transform: grid.get_tile_position(pos),
+                transform,
                 ..Default::default()
             },
             marker: WorldEntityMarker,
@@ -138,7 +186,7 @@ impl Grid {
         Transform::from_translation(Vec3::new(
             (self.tile.x * position.x) as f32,
             (self.tile.y * position.y) as f32,
-            1.0,
+            0.0,
         ))
     }
 

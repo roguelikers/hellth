@@ -26,6 +26,8 @@ use bevy::prelude::*;
 
 use bevy::diagnostic::DiagnosticsStore;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
+use bevy_mod_picking::DefaultPickingPlugins;
+use bevy_mouse_tracking_plugin::mouse_pos::MousePosPlugin;
 use winit::window::Icon;
 
 #[derive(Component)]
@@ -146,7 +148,9 @@ impl Plugin for SvarogWindowPlugins {
                 ..default()
             });
         });
-        bevy.add_systems(Startup, set_window_icon)
+        bevy.add_plugins(MousePosPlugin)
+            .add_plugins(DefaultPickingPlugins)
+            .add_systems(Startup, set_window_icon)
             .add_plugins(bevy_mod_imgui::ImguiPlugin {
                 ini_filename: Some("imgui.ini".into()),
                 ..Default::default()

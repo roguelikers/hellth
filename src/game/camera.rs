@@ -1,9 +1,18 @@
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{
+    core_pipeline::clear_color::ClearColorConfig,
+    prelude::*,
+    render::{camera::ScalingMode, view::RenderLayers},
+};
 use bevy_mod_imgui::prelude::*;
+use bevy_mouse_tracking_plugin::{
+    mouse_pos::{InitMouseTracking, InitWorldTracking},
+    MainCamera,
+};
+use bevy_trauma_shake::{Shake, ShakeSettings};
 
 use super::{
     grid::{Grid, WorldEntity},
-    procgen::PlayerMarker,
+    procgen::{PlayerMarker, ProcGenEvent},
     GameStates,
 };
 
@@ -125,6 +134,66 @@ fn debug_camera(
         });
 }
 
+fn setup_cameras(mut commands: Commands, mut procgen_events: EventWriter<ProcGenEvent>) {
+    commands.spawn((
+        Camera2dBundle {
+            camera_2d: Camera2d {
+                clear_color: ClearColorConfig::Custom(Color::BLACK),
+            },
+            projection: OrthographicProjection {
+                far: 1000.,
+                near: -1000.,
+                scale: 1.0,
+                scaling_mode: ScalingMode::WindowSize(2.0),
+                ..Default::default()
+            },
+            camera: Camera {
+                order: 0,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Shake::default(),
+        ShakeSettings {
+            trauma_power: 0.1,
+            decay_per_second: 1.0,
+            amplitude: 10.,
+            frequency: 10.,
+            octaves: 1,
+        },
+        MainCameraMarker,
+        RenderLayers::layer(0),
+    ));
+
+    commands
+        .spawn((
+            Camera2dBundle {
+                camera_2d: Camera2d {
+                    clear_color: ClearColorConfig::None,
+                },
+                projection: OrthographicProjection {
+                    far: 1000.,
+                    near: -1000.,
+                    scale: 1.0,
+                    scaling_mode: ScalingMode::WindowSize(2.0),
+                    ..Default::default()
+                },
+                camera: Camera {
+                    order: 1,
+                    ..Default::default()
+                },
+
+                ..Default::default()
+            },
+            FollowCameraMarker,
+            RenderLayers::layer(1),
+        ))
+        .add(InitMouseTracking)
+        .add(InitWorldTracking);
+
+    procgen_events.send(ProcGenEvent);
+}
+
 pub struct SvarogCameraPlugin;
 impl Plugin for SvarogCameraPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
@@ -135,6 +204,7 @@ impl Plugin for SvarogCameraPlugin {
             smooth_camera_track: true,
         })
         .add_systems(PostUpdate, track_camera.run_if(in_state(GameStates::Game)))
+        .add_systems(OnEnter(GameStates::Game), setup_cameras)
         .add_systems(PostUpdate, debug_camera);
     }
 }

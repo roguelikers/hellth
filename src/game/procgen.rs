@@ -2,19 +2,26 @@ use bevy::{
     prelude::*,
     utils::{HashMap, HashSet},
 };
+use bevy_mod_picking::{
+    events::{Click, Over, Pointer},
+    picking_core::Pickable,
+    prelude::On,
+    PickableBundle,
+};
 use doryen_fov::MapData;
 
 use crate::game::{
     ai::{AIAgent, PendingActions},
     character::{Character, CharacterStat},
     fov::Sight,
-    grid::WorldEntityBundle,
+    grid::{WorldEntityBundle, WorldEntityKind},
     health::Health,
-    inventory::{EquippedItems, ItemBuilder, ItemType},
+    inventory::{CarriedItems, EquippedItems, ItemBuilder, ItemType},
     player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
     turns::TurnTaker,
+    ui::ShowEntityDetails,
 };
 
 use super::{
@@ -177,7 +184,7 @@ pub fn generate_level(
         rng: &mut ResMut<Random>,
         grid: &Res<Grid>,
         map: &mut ResMut<WorldData>,
-        okay: &HashSet<IVec2>,
+        okay: &mut HashSet<IVec2>,
     ) {
         let wall_tiles: Vec<usize> = Tiles::default().add_one(WALL1).done();
         let floor_tiles: Vec<usize> = Tiles::default()
@@ -260,6 +267,7 @@ pub fn generate_level(
                             Passability::Blocking
                         },
                     });
+                    okay.remove(pos);
                     map.solid.insert(*pos);
                 }
             }
@@ -295,7 +303,15 @@ pub fn generate_level(
         &mut map,
         &mut okay,
     );
-    make_houses(&mut commands, 40, size, &mut rng, &grid, &mut map, &okay);
+    make_houses(
+        &mut commands,
+        40,
+        size,
+        &mut rng,
+        &grid,
+        &mut map,
+        &mut okay,
+    );
 
     let stats = [
         CharacterStat::STR,
@@ -306,11 +322,10 @@ pub fn generate_level(
         CharacterStat::AGI,
     ];
 
-    // add people
     let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
 
     // add stuff
-    for i in 1..20 {
+    for _ in 1..20 {
         let mut builder = ItemBuilder::default()
             .with_name("Arcane Scroll")
             .with_image(rng.from(&[SCROLL1, SCROLL2]))
@@ -335,23 +350,26 @@ pub fn generate_level(
         places.pop().unwrap_or_default(),
         EMO_MAGE.into(),
         true,
-        true,
+        WorldEntityKind::Player,
     ));
     player.insert((
         Character {
             agility: 6,
             ..Default::default()
         },
+        CarriedItems::default(),
         EquippedItems::default(),
         PlayerMarker,
         PlayerState::default(),
         PendingActions::default(),
         Health::new(10),
         TurnTaker,
+        PickableBundle::default(),
+        On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
         Sight(6),
     ));
 
-    // add "enemies"
+    // add mobs
     for i in 1..10 {
         let index: usize = OLD_MAGE.into();
         let mut mage = commands.spawn(WorldEntityBundle::new(
@@ -360,16 +378,19 @@ pub fn generate_level(
             places.pop().unwrap_or_default(),
             index + rng.gen(0..7) as usize,
             true,
-            false,
+            WorldEntityKind::NPC,
         ));
 
         mage.insert((
             TurnTaker,
-            Character::default(),
+            Character::random(&mut rng),
             AIAgent::default(),
+            CarriedItems::default(),
             EquippedItems::default(),
             PendingActions::default(),
-            Health::new(10),
+            PickableBundle::default(),
+            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+            Health::new(5),
         ));
     }
     turn_order_progress.send(TurnOrderProgressEvent);

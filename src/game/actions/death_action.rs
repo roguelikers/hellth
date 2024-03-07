@@ -2,9 +2,9 @@ use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
     ai::AIAgent,
+    character::Character,
     grid::{WorldData, WorldEntity},
     health::Health,
-    sprites::BONES,
     turns::{TurnOrder, TurnOrderEntity, TurnTaker},
 };
 
@@ -13,11 +13,11 @@ use crate::game::fov::RecalculateFOVEvent;
 
 #[derive(Debug)]
 pub struct DeathAction {
-    pub target: Entity,
+    pub entity: Entity,
 }
 
 pub fn a_death(who: Entity) -> AbstractAction {
-    Box::new(DeathAction { target: who })
+    Box::new(DeathAction { entity: who })
 }
 
 impl Action for DeathAction {
@@ -26,40 +26,62 @@ impl Action for DeathAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
-        let mut read_system_state = SystemState::<(
-            Commands,
-            ResMut<WorldData>,
-            ResMut<TurnOrder>,
-            Query<(&mut WorldEntity, &mut TextureAtlasSprite, &mut Transform)>,
-            EventWriter<RecalculateFOVEvent>,
-        )>::new(world);
-        let (mut commands, mut world_data, mut turn_order, mut world_entity_query, mut fov_events) =
-            read_system_state.get_mut(world);
+        let result = {
+            let mut read_system_state = SystemState::<(
+                ResMut<WorldData>,
+                ResMut<TurnOrder>,
+                Query<(&Character, &mut WorldEntity)>,
+            )>::new(world);
+            let (mut world_data, mut turn_order, mut world_entity_query) =
+                read_system_state.get_mut(world);
 
-        let Ok((world_entity, mut sprites, mut transform)) =
-            world_entity_query.get_mut(self.target)
-        else {
-            return vec![];
-        };
+            let Ok((character, world_entity)) = world_entity_query.get_mut(self.entity) else {
+                return vec![];
+            };
 
-        world_data.blocking.remove(&world_entity.position);
-        sprites.index = BONES.into();
-        transform.translation.z += 0.1;
-
-        if !world_entity.is_player {
-            fov_events.send(RecalculateFOVEvent);
+            world_data.blocking.remove(&world_entity.position);
 
             turn_order.order.remove(&TurnOrderEntity {
-                entity: self.target,
+                entity: self.entity,
             });
-        }
 
-        commands
-            .entity(self.target)
-            .remove::<TurnTaker>()
-            .remove::<AIAgent>()
-            .remove::<Health>();
+            if !world_entity.is_player {
+                let stats = make_item(character);
 
-        vec![]
+                if !stats.is_empty() {
+                    vec![a_leave_bones(stats, world_entity.position)]
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![a_leave_bones(vec![], world_entity.position)]
+            }
+        };
+
+        world.despawn(self.entity);
+        result
     }
+}
+
+fn make_item(char: &Character) -> Vec<(CharacterStat, i32)> {
+    let mut result = vec![];
+    let stats = [
+        CharacterStat::STR,
+        CharacterStat::ARC,
+        CharacterStat::INT,
+        CharacterStat::WIS,
+        CharacterStat::WIL,
+        CharacterStat::AGI,
+    ];
+
+    for stat in &stats {
+        let val = char[*stat];
+        match val {
+            x if x > 3 => result.push((*stat, 1)),
+            x if x < 3 => result.push((*stat, -1)),
+            _ => {}
+        };
+    }
+
+    result
 }
