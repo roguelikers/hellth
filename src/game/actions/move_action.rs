@@ -25,7 +25,6 @@ enum MoveResult {
     MoveSucceed {
         next_position: IVec2,
         new_transform: Transform,
-        is_in_fov: bool,
     },
     #[allow(dead_code)]
     CancelMove,
@@ -56,7 +55,6 @@ impl Action for MoveAction {
             };
 
             let next_position = *position + self.direction;
-            let (x, y) = grid.norm(next_position);
             let mut new_transform = grid.get_tile_position(next_position);
             new_transform.translation.z = transform.translation.z;
 
@@ -65,7 +63,6 @@ impl Action for MoveAction {
                     MoveResult::MoveSucceed {
                         next_position,
                         new_transform,
-                        is_in_fov: world_data.data.is_in_fov(x, y),
                     }
                 } else {
                     return vec![a_melee(self.entity, self.direction)];
@@ -81,7 +78,6 @@ impl Action for MoveAction {
             MoveResult::MoveSucceed {
                 next_position,
                 new_transform,
-                is_in_fov,
             } => {
                 let mut write_system_state = SystemState::<(
                     Query<&mut WorldEntity>,

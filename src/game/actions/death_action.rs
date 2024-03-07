@@ -1,15 +1,12 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    ai::AIAgent,
     character::Character,
     grid::{WorldData, WorldEntity},
-    health::Health,
-    turns::{TurnOrder, TurnOrderEntity, TurnTaker},
+    turns::{TurnOrder, TurnOrderEntity},
 };
 
 use super::*;
-use crate::game::fov::RecalculateFOVEvent;
 
 #[derive(Debug)]
 pub struct DeathAction {

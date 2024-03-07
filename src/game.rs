@@ -1,27 +1,12 @@
-use bevy::{
-    core_pipeline::clear_color::ClearColorConfig,
-    prelude::*,
-    render::{camera::ScalingMode, view::RenderLayers},
-};
+use bevy::prelude::*;
 use bevy_asset_loader::prelude::*;
-use bevy_mouse_tracking_plugin::{
-    mouse_pos::{InitMouseTracking, InitWorldTracking},
-    MainCamera,
-};
-use bevy_trauma_shake::{Shake, ShakeSettings, TraumaPlugin};
+use bevy_trauma_shake::TraumaPlugin;
 
 use self::{
-    actions::SvarogActionsPlugin,
-    ai::SvarogAIPlugin,
-    camera::{FollowCameraMarker, MainCameraMarker, SvarogCameraPlugin},
-    feel::SvarogFeelPlugin,
-    grid::SvarogGridPlugin,
-    loading::SvarogLoadingPlugin,
-    player::SvarogPlayerPlugin,
-    procgen::{ProcGenEvent, SvarogProcgenPlugin},
-    turns::SvarogTurnPlugin,
-    ui::SvarogUIPlugin,
-    window::SvarogWindowPlugins,
+    actions::SvarogActionsPlugin, ai::SvarogAIPlugin, camera::SvarogCameraPlugin,
+    feel::SvarogFeelPlugin, grid::SvarogGridPlugin, loading::SvarogLoadingPlugin,
+    player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin, turns::SvarogTurnPlugin,
+    ui::SvarogUIPlugin, window::SvarogWindowPlugins,
 };
 
 pub mod actions;

@@ -4,10 +4,7 @@ use bevy::{
     render::{camera::ScalingMode, view::RenderLayers},
 };
 use bevy_mod_imgui::prelude::*;
-use bevy_mouse_tracking_plugin::{
-    mouse_pos::{InitMouseTracking, InitWorldTracking},
-    MainCamera,
-};
+use bevy_mouse_tracking_plugin::mouse_pos::{InitMouseTracking, InitWorldTracking};
 use bevy_trauma_shake::{Shake, ShakeSettings};
 
 use super::{

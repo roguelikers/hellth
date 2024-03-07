@@ -51,10 +51,7 @@ pub trait AIBehaviour: Send + Sync + Debug {
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    mut non_players: Query<
-        (&WorldEntity, &Character, &AIAgent, &mut PendingActions),
-        Without<PlayerMarker>,
-    >,
+    mut non_players: Query<(&Character, &AIAgent, &mut PendingActions), Without<PlayerMarker>>,
     mut actions: EventWriter<ActionEvent>,
 ) {
     let Ok((player_entity, _player_world)) = player.get_single() else {
@@ -71,7 +68,7 @@ pub fn ai_agents_act(
 
     while turn_order.peek() != Some(player_entity) {
         if let Some(top) = turn_order.peek() {
-            if let Ok((world_entity, character, ai_agent, mut pending)) = non_players.get_mut(top) {
+            if let Ok((character, ai_agent, mut pending)) = non_players.get_mut(top) {
                 let current_energy = turn_order
                     .order
                     .get_priority(&TurnOrderEntity { entity: top })
@@ -82,6 +79,7 @@ pub fn ai_agents_act(
                     return;
                 }
 
+                #[allow(unused_assignments)]
                 let mut taken_action: Option<ActionEvent> = None;
                 if pending.0.is_empty() {
                     taken_action = Some(ActionEvent(a_think(top, ai_agent.0.into())));

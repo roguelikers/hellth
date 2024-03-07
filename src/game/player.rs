@@ -1,10 +1,6 @@
-use bevy::{
-    prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem,
-    window::PrimaryWindow,
-};
-use bevy_mouse_tracking_plugin::MousePosWorld;
+use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
-use crate::game::{actions::a_move, turns::TurnOrderEntity};
+use crate::game::actions::a_move;
 
 use super::{
     actions::{a_pickup, a_wait, ActionEvent},
@@ -69,8 +65,8 @@ fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
 }
 
 #[allow(clippy::type_complexity)]
+#[allow(unused_assignments)]
 pub fn character_controls(
-    mouse: Res<MousePosWorld>,
     mut turn_order: ResMut<TurnOrder>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
@@ -132,7 +128,7 @@ pub fn character_controls(
                 } else if keys.just_pressed(KeyCode::Comma) || keys.just_pressed(KeyCode::Space) {
                     let items = item_query
                         .iter()
-                        .filter(|(e, w, i)| w.position == player_game_entity.position)
+                        .filter(|(_e, w, _i)| w.position == player_game_entity.position)
                         .collect::<Vec<_>>();
 
                     #[allow(clippy::comparison_chain)]

@@ -2,7 +2,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
     character::CharacterStat,
-    grid::{WorldData, WorldEntity},
+    grid::WorldEntity,
     inventory::{CarriedItems, CarriedMarker, Item},
 };
 
@@ -25,12 +25,11 @@ impl Action for PickupAction {
 
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
-            Res<WorldData>,
             Query<(&WorldEntity, Option<&mut CarriedItems>)>,
             Query<(&Item, &mut Visibility)>,
         )>::new(world);
 
-        let (world_data, mut world_entities, mut items) = read_system_state.get_mut(world);
+        let (mut world_entities, mut items) = read_system_state.get_mut(world);
 
         let Ok((person_entity, Some(mut person_carrying))) = world_entities.get_mut(self.who)
         else {

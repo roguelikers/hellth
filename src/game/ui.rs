@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_mod_imgui::ImguiContext;
 use bevy_mod_picking::{
-    events::{Click, Over, Pointer},
+    events::{Click, Pointer},
     prelude::ListenerInput,
 };
 

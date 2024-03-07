@@ -6,7 +6,7 @@ use super::{
 };
 use bevy::{prelude::*, utils::HashMap};
 use bevy_mod_picking::{
-    events::{Click, Over, Pointer},
+    events::{Click, Pointer},
     prelude::On,
     PickableBundle,
 };

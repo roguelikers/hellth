@@ -3,8 +3,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 use bevy_mod_picking::{
-    events::{Click, Over, Pointer},
-    picking_core::Pickable,
+    events::{Click, Pointer},
     prelude::On,
     PickableBundle,
 };
