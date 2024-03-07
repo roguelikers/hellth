@@ -1,8 +1,10 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::game::{actions::a_move, grid::WorldEntity, procgen::PlayerMarker};
+use crate::game::{
+    actions::a_move, character::CharacterStat, grid::WorldEntity, procgen::PlayerMarker,
+};
 
-use super::{AbstractAction, Action};
+use super::{AbstractAction, Action, ActionResult};
 
 #[derive(Debug)]
 pub struct FleeAction {
@@ -15,7 +17,11 @@ pub fn a_flee(who: Entity, target: Entity) -> AbstractAction {
 }
 
 impl Action for FleeAction {
-    fn do_action(&self, world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::AGI
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut world_state =
             SystemState::<(Query<&WorldEntity>, Query<Entity, With<PlayerMarker>>)>::new(world);
         let (world_state_query, player_entities) = world_state.get_mut(world);

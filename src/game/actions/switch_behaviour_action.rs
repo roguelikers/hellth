@@ -15,7 +15,11 @@ pub fn a_behave(entity: Entity, behaviour: AIStrategy) -> AbstractAction {
 }
 
 impl Action for SwitchBehaviourAction {
-    fn do_action(&self, world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::INT
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut ai_agent_state = SystemState::<Query<&mut AIAgent>>::new(world);
         let mut ai_agent_query = ai_agent_state.get_mut(world);
 

@@ -32,7 +32,11 @@ enum MoveResult {
 }
 
 impl Action for MoveAction {
-    fn do_action(&self, world: &mut World) -> Vec<Box<dyn Action>> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::AGI
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         if self.direction == IVec2::ZERO {
             return vec![];
         }

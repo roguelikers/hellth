@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::spells::*;
+use crate::game::{character::CharacterStat, spells::*};
 
-use super::{AbstractAction, Action};
+use super::{AbstractAction, Action, ActionResult};
 
 #[derive(Debug)]
 pub struct CastSpellAction {
@@ -27,7 +27,11 @@ pub fn a_cast_spell(
 }
 
 impl Action for CastSpellAction {
-    fn do_action(&self, _world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::INT
+    }
+
+    fn do_action(&self, _world: &mut World) -> ActionResult {
         vec![]
     }
 }

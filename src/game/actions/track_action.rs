@@ -1,8 +1,11 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
-use crate::game::{actions::a_move, feel::Random, grid::WorldEntity, procgen::PlayerMarker};
+use crate::game::{
+    actions::a_move, character::CharacterStat, feel::Random, grid::WorldEntity,
+    procgen::PlayerMarker,
+};
 
-use super::{AbstractAction, Action};
+use super::{AbstractAction, Action, ActionResult};
 
 #[derive(Debug)]
 pub struct TrackAction {
@@ -15,7 +18,11 @@ pub fn a_track(who: Entity, target: Entity) -> AbstractAction {
 }
 
 impl Action for TrackAction {
-    fn do_action(&self, world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::WIS
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut world_state = SystemState::<(
             Query<&WorldEntity>,
             Query<Entity, With<PlayerMarker>>,

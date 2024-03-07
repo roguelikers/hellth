@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_mod_imgui::ImguiContext;
 
 use super::{
+    character::Character,
     grid::{Grid, WorldData, WorldEntity},
     health::Health,
     procgen::PlayerMarker,
@@ -11,8 +12,8 @@ use super::{
 pub struct SvarogUIPlugin;
 
 fn show_status_for_world_entities(
-    player_entity: Query<(&WorldEntity, &Health), With<PlayerMarker>>,
-    world_entities: Query<(&WorldEntity, &Health), Without<PlayerMarker>>,
+    player_entity: Query<(&WorldEntity, &Character, &Health), With<PlayerMarker>>,
+    world_entities: Query<(&WorldEntity, &Character, &Health), Without<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     world: Res<WorldData>,
     mut context: NonSendMut<ImguiContext>,
@@ -25,37 +26,39 @@ fn show_status_for_world_entities(
 
     let [width, _height] = ui.io().display_size;
 
-    let Ok((player, player_health)) = player_entity.get_single() else {
+    let Ok((player, player_char, player_health)) = player_entity.get_single() else {
         return;
     };
 
     ui.window(&player.name)
         .position_pivot([1.0, 0.0])
         .position([width - 10.0, 10.0], imgui::Condition::Always)
-        .size([300.0, 50.0], imgui::Condition::Always)
+        .size([400.0, 75.0], imgui::Condition::Always)
         .resizable(false)
         .collapsible(false)
         .focused(false)
         .build(|| {
+            ui.text(format!("{:?}", player_char));
             ui.text(format!("{:?}", player_health));
         });
 
-    let mut window_y = 65.0f32;
-    for (other_entity, other_health) in &world_entities {
+    let mut window_y = 85.0f32;
+    for (other_entity, other_char, other_health) in &world_entities {
         let (x, y) = grid.norm(other_entity.position);
         if world.data.is_in_fov(x, y) {
             ui.window(&other_entity.name)
                 .position_pivot([1.0, 0.0])
                 .position([width - 10.0, window_y], imgui::Condition::Always)
-                .size([300.0, 50.0], imgui::Condition::Always)
+                .size([400.0, 75.0], imgui::Condition::Always)
                 .resizable(false)
                 .collapsible(false)
                 .focused(false)
                 .build(|| {
+                    ui.text(format!("{:?}", other_char));
                     ui.text(format!("{:?}", other_health));
                 });
 
-            window_y += 55.0;
+            window_y += 75.0;
         }
     }
 }

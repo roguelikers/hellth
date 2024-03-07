@@ -17,7 +17,11 @@ pub fn a_melee(who: Entity, wher: IVec2) -> AbstractAction {
 }
 
 impl Action for MeleeAttackAction {
-    fn do_action(&self, world: &mut World) -> Vec<Box<dyn Action>> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::STR
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state =
             SystemState::<(Res<WorldData>, Query<&WorldEntity>)>::new(world);
 

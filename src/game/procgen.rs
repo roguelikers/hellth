@@ -313,6 +313,7 @@ pub fn generate_level(
         Character::default(),
         PlayerMarker,
         PlayerState::default(),
+        PendingActions::default(),
         Health::new(10),
         TurnTaker,
         Sight(6),

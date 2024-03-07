@@ -15,7 +15,11 @@ pub fn a_hit(attacker: Entity, target: Entity) -> AbstractAction {
 }
 
 impl Action for HitAction {
-    fn do_action(&self, world: &mut World) -> Vec<Box<dyn Action>> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::STR
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state =
             SystemState::<(Query<&mut Health>, Query<&PlayerMarker>, Query<&mut Shake>)>::new(
                 world,

@@ -2,7 +2,9 @@ use std::{thread, time::Duration};
 
 use bevy::prelude::*;
 
-use super::{AbstractAction, Action};
+use crate::game::character::CharacterStat;
+
+use super::{AbstractAction, Action, ActionResult};
 
 #[derive(Debug)]
 pub struct WaitAction;
@@ -12,7 +14,11 @@ pub fn a_wait() -> AbstractAction {
 }
 
 impl Action for WaitAction {
-    fn do_action(&self, _world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::WIL
+    }
+
+    fn do_action(&self, _world: &mut World) -> ActionResult {
         thread::sleep(Duration::from_millis(18));
         vec![]
     }

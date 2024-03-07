@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
-use crate::game::{actions::a_move, feel::Random};
+use crate::game::{actions::a_move, character::CharacterStat, feel::Random};
 
-use super::{AbstractAction, Action};
+use super::{AbstractAction, Action, ActionResult};
 
 #[derive(Debug)]
 pub struct RandomWalkAction {
@@ -14,7 +14,11 @@ pub fn a_random_walk(who: Entity) -> AbstractAction {
 }
 
 impl Action for RandomWalkAction {
-    fn do_action(&self, world: &mut World) -> Vec<AbstractAction> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::AGI
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let Some(mut rng) = world.get_resource_mut::<Random>() else {
             return vec![];
         };

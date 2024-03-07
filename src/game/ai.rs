@@ -6,10 +6,13 @@ use std::fmt::Debug;
 
 use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 
+use crate::game::turns::TurnOrderEntity;
+
 use self::{random_move_ai::ai_random_move, standard_ai::ai_standard};
 
 use super::{
-    actions::{ai_think_action::AIThinkAction, AbstractAction, ActionEvent},
+    actions::{a_think, AbstractAction, ActionEvent},
+    character::Character,
     grid::WorldEntity,
     health::Health,
     procgen::PlayerMarker,
@@ -48,7 +51,10 @@ pub trait AIBehaviour: Send + Sync + Debug {
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    mut non_players: Query<(&WorldEntity, &AIAgent, &mut PendingActions), Without<PlayerMarker>>,
+    mut non_players: Query<
+        (&WorldEntity, &Character, &AIAgent, &mut PendingActions),
+        Without<PlayerMarker>,
+    >,
     mut actions: EventWriter<ActionEvent>,
 ) {
     let Ok((player_entity, _player_world)) = player.get_single() else {
@@ -65,19 +71,35 @@ pub fn ai_agents_act(
 
     while turn_order.peek() != Some(player_entity) {
         if let Some(top) = turn_order.peek() {
-            if let Ok((_world_top, ai_agent, mut pending)) = non_players.get_mut(top) {
+            if let Ok((world_entity, character, ai_agent, mut pending)) = non_players.get_mut(top) {
+                let current_energy = turn_order
+                    .order
+                    .get_priority(&TurnOrderEntity { entity: top })
+                    .unwrap();
+
+                if current_energy.0 == 0 {
+                    turn_order.restart_turn();
+                    return;
+                }
+
+                let mut taken_action: Option<ActionEvent> = None;
                 if pending.0.is_empty() {
-                    actions.send(ActionEvent(Box::new(AIThinkAction {
-                        entity: top,
-                        behaviour: ai_agent.0.into(),
-                    })));
-                    turn_order.pushback(100);
+                    taken_action = Some(ActionEvent(a_think(top, ai_agent.0.into())));
                 } else {
-                    let planned = pending.0.pop_front().unwrap();
-                    actions.send(ActionEvent(planned));
-                    turn_order.pushback(100);
+                    taken_action = Some(ActionEvent(pending.0.pop_front().unwrap()));
+                }
+
+                if let Some(action) = taken_action {
+                    let cost = character.calculate_cost(action.0.get_affiliated_stat());
+                    println!(
+                        "{:?} ({} energy) decides to do {:?} for {} energy",
+                        world_entity.name, current_energy.0, action.0, cost
+                    );
+                    turn_order.pushback(cost);
+                    actions.send(action);
                 }
             } else {
+                println!("SOMETHING IS OFF HERE!");
                 turn_order.pushback(100);
             }
         }

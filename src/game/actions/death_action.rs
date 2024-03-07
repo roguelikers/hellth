@@ -21,7 +21,11 @@ pub fn a_death(who: Entity) -> AbstractAction {
 }
 
 impl Action for DeathAction {
-    fn do_action(&self, world: &mut World) -> Vec<Box<dyn Action>> {
+    fn get_affiliated_stat(&self) -> CharacterStat {
+        CharacterStat::WIL
+    }
+
+    fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
             Commands,
             ResMut<WorldData>,
