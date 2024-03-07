@@ -6,10 +6,11 @@ use doryen_fov::MapData;
 
 use crate::game::{
     ai::{AIAgent, PendingActions},
-    character::Character,
-    fov::{LastSeen, Sight},
+    character::{Character, CharacterStat},
+    fov::Sight,
     grid::WorldEntityBundle,
     health::Health,
+    inventory::{EquippedItems, ItemBuilder, ItemType},
     player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
@@ -296,9 +297,36 @@ pub fn generate_level(
     );
     make_houses(&mut commands, 40, size, &mut rng, &grid, &mut map, &okay);
 
-    // add stuff
+    let stats = [
+        CharacterStat::STR,
+        CharacterStat::ARC,
+        CharacterStat::INT,
+        CharacterStat::WIS,
+        CharacterStat::WIL,
+        CharacterStat::AGI,
+    ];
+
     // add people
     let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
+
+    // add stuff
+    for i in 1..20 {
+        let mut builder = ItemBuilder::default()
+            .with_name("Arcane Scroll")
+            .with_image(rng.from(&[SCROLL1, SCROLL2]))
+            .with_type(ItemType::Spell);
+
+        for _ in 0..rng.gen(1..3) {
+            let mut power = 0;
+            while power == 0 {
+                power = rng.gen(-3..3);
+            }
+
+            builder = builder.with_stat(rng.from(&stats), power);
+        }
+
+        builder.create_at(places.pop().unwrap_or_default(), &mut commands, &grid)
+    }
 
     // add player
     let mut player = commands.spawn(WorldEntityBundle::new(
@@ -314,6 +342,7 @@ pub fn generate_level(
             agility: 6,
             ..Default::default()
         },
+        EquippedItems::default(),
         PlayerMarker,
         PlayerState::default(),
         PendingActions::default(),
@@ -338,9 +367,9 @@ pub fn generate_level(
             TurnTaker,
             Character::default(),
             AIAgent::default(),
+            EquippedItems::default(),
             PendingActions::default(),
             Health::new(10),
-            LastSeen::default(),
         ));
     }
     turn_order_progress.send(TurnOrderProgressEvent);

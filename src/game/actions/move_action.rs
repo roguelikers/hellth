@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    fov::{LastSeen, RecalculateFOVEvent},
+    fov::RecalculateFOVEvent,
     grid::{Grid, WorldData, WorldEntity},
     procgen::PlayerMarker,
 };
@@ -80,7 +80,6 @@ impl Action for MoveAction {
             } => {
                 let mut write_system_state = SystemState::<(
                     Query<&mut WorldEntity>,
-                    Query<&mut LastSeen>,
                     Query<(&PlayerMarker, &mut Transform)>,
                     ResMut<WorldData>,
                     EventWriter<RecalculateFOVEvent>,
@@ -88,7 +87,6 @@ impl Action for MoveAction {
 
                 let (
                     mut world_entity_query,
-                    mut last_seen_query,
                     mut player_transform_query,
                     mut world_data,
                     mut fov_events,
@@ -99,12 +97,6 @@ impl Action for MoveAction {
                     world_entity.position = next_position;
                     if world_entity.blocking {
                         world_data.blocking.insert(next_position, self.entity);
-                    }
-                }
-
-                if is_in_fov {
-                    if let Ok(mut last_seen) = last_seen_query.get_mut(self.entity) {
-                        *last_seen = LastSeen(Some(next_position));
                     }
                 }
 

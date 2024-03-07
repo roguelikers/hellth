@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::fmt::Debug;
 use std::ops::Index;
 
-#[derive(Debug)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum CharacterStat {
     STR,
     ARC,

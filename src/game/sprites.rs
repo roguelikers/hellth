@@ -35,6 +35,9 @@ pub const INTERIOR_FLOOR2: Tile = Tile(0, 17);
 pub const OLD_MAGE: Tile = Tile(2, 24);
 pub const EMO_MAGE: Tile = Tile(1, 26);
 
+pub const SCROLL1: Tile = Tile(15, 34);
+pub const SCROLL2: Tile = Tile(15, 33);
+
 #[derive(Default)]
 pub struct Tiles(Vec<Vec<Tile>>);
 
