@@ -310,7 +310,10 @@ pub fn generate_level(
         true,
     ));
     player.insert((
-        Character::default(),
+        Character {
+            agility: 6,
+            ..Default::default()
+        },
         PlayerMarker,
         PlayerState::default(),
         PendingActions::default(),
