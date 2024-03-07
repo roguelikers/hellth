@@ -34,7 +34,7 @@ impl From<AIStrategy> for AbstractAIBehaviour {
 }
 
 #[derive(Component, Default)]
-pub struct AIPlan(pub VecDeque<AbstractAction>);
+pub struct PendingActions(pub VecDeque<AbstractAction>);
 
 #[derive(Component, Debug, Default)]
 pub struct AIAgent(pub AIStrategy);
@@ -48,7 +48,7 @@ pub trait AIBehaviour: Send + Sync + Debug {
 pub fn ai_agents_act(
     mut turn_order: ResMut<TurnOrder>,
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
-    mut non_players: Query<(&WorldEntity, &AIAgent, &mut AIPlan), Without<PlayerMarker>>,
+    mut non_players: Query<(&WorldEntity, &AIAgent, &mut PendingActions), Without<PlayerMarker>>,
     mut actions: EventWriter<ActionEvent>,
 ) {
     let Ok((player_entity, _player_world)) = player.get_single() else {
@@ -65,17 +65,15 @@ pub fn ai_agents_act(
 
     while turn_order.peek() != Some(player_entity) {
         if let Some(top) = turn_order.peek() {
-            if let Ok((_world_top, ai_agent, mut ai_plan)) = non_players.get_mut(top) {
-                if ai_plan.0.is_empty() {
-                    println!("AI THINKING");
+            if let Ok((_world_top, ai_agent, mut pending)) = non_players.get_mut(top) {
+                if pending.0.is_empty() {
                     actions.send(ActionEvent(Box::new(AIThinkAction {
                         entity: top,
                         behaviour: ai_agent.0.into(),
                     })));
                     turn_order.pushback(100);
                 } else {
-                    let planned = ai_plan.0.pop_front().unwrap();
-                    println!("AI NOW: {:?}, WAITING ON: {:?}", planned, ai_plan.0);
+                    let planned = pending.0.pop_front().unwrap();
                     actions.send(ActionEvent(planned));
                     turn_order.pushback(100);
                 }

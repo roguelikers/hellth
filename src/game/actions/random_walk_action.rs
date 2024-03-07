@@ -19,6 +19,21 @@ impl Action for RandomWalkAction {
             return vec![];
         };
 
-        vec![a_move(self.who, rng.gen2d(-1..2, -1..2))]
+        if rng.percent(80u32) {
+            let extremes = [-1, 1];
+            if rng.coin() {
+                vec![a_move(
+                    self.who,
+                    IVec2::new(extremes[rng.gen(0..1) as usize], 0),
+                )]
+            } else {
+                vec![a_move(
+                    self.who,
+                    IVec2::new(0, extremes[rng.gen(0..1) as usize]),
+                )]
+            }
+        } else {
+            vec![a_move(self.who, rng.gen2d(-1..1, -1..1))]
+        }
     }
 }

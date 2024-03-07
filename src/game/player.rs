@@ -1,7 +1,9 @@
 use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
+use crate::game::actions::a_move;
+
 use super::{
-    actions::{move_action::MoveAction, wait_action::WaitAction, ActionEvent},
+    actions::{a_wait, wait_action::WaitAction, ActionEvent},
     grid::{WorldData, WorldEntity},
     health::Health,
     procgen::PlayerMarker,
@@ -36,14 +38,24 @@ pub enum PlayerState {
 }
 
 fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
-    if keys.just_pressed(KeyCode::Up) {
+    if keys.just_pressed(KeyCode::W) {
         Some(IVec2::new(0, 1))
-    } else if keys.just_pressed(KeyCode::Down) {
+    } else if keys.just_pressed(KeyCode::S) {
         Some(IVec2::new(0, -1))
-    } else if keys.just_pressed(KeyCode::Left) {
+    } else if keys.just_pressed(KeyCode::A) {
         Some(IVec2::new(-1, 0))
-    } else if keys.just_pressed(KeyCode::Right) {
+    } else if keys.just_pressed(KeyCode::D) {
         Some(IVec2::new(1, 0))
+    } else if keys.just_pressed(KeyCode::Q) {
+        Some(IVec2::new(-1, 1))
+    } else if keys.just_pressed(KeyCode::E) {
+        Some(IVec2::new(1, 1))
+    } else if keys.just_pressed(KeyCode::Z) {
+        Some(IVec2::new(-1, -1))
+    } else if keys.just_pressed(KeyCode::C) {
+        Some(IVec2::new(1, -1))
+    } else if keys.just_pressed(KeyCode::Period) || keys.just_pressed(KeyCode::X) {
+        Some(IVec2::ZERO)
     } else {
         None
     }
@@ -78,15 +90,19 @@ pub fn character_controls(
 
             let maybe_move = try_direction_keys(&keys);
             if let Some(direction) = maybe_move {
+                if direction == IVec2::ZERO {
+                    actions.send(ActionEvent(a_wait()));
+                    turn_order.pushback(50);
+                }
                 if !map
                     .solid
                     .contains(&(player_game_entity.position + direction))
                 {
-                    actions.send(ActionEvent(Box::new(MoveAction { entity, direction })));
+                    actions.send(ActionEvent(a_move(entity, direction)));
                     turn_order.pushback(100);
                 }
-            } else if keys.just_pressed(KeyCode::C) {
-                println!("Choose your spell");
+            } else if keys.just_pressed(KeyCode::T) {
+                println!("Choose your thaum");
                 *player_state = PlayerState::Spell(CastSpellState::default());
             }
         }

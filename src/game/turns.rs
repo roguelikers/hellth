@@ -3,7 +3,7 @@ use bevy_mod_imgui::ImguiContext;
 use priority_queue::PriorityQueue;
 
 use super::{
-    ai::{AIAgent, AIPlan},
+    ai::{AIAgent, PendingActions},
     grid::WorldEntity,
 };
 
@@ -90,7 +90,7 @@ pub fn turn_order_progress(
 fn debug_turn_order(
     mut context: NonSendMut<ImguiContext>,
     turn_order: Res<TurnOrder>,
-    entities: Query<(&WorldEntity, Option<&AIAgent>, Option<&AIPlan>)>,
+    entities: Query<(&WorldEntity, Option<&AIAgent>, Option<&PendingActions>)>,
 ) {
     let ui = context.ui();
     let window = ui.window("Turn Order");
@@ -110,7 +110,7 @@ fn debug_turn_order(
                     "".to_string()
                 };
 
-                let plan = if let Some(AIPlan(plan)) = plan {
+                let plan = if let Some(PendingActions(plan)) = plan {
                     format!("({:?})", plan)
                 } else {
                     "".to_string()
