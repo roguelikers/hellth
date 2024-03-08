@@ -1,17 +1,17 @@
 use bevy::prelude::*;
 
-use bevy::window::PrimaryWindow;
 use bevy_mod_imgui::ImguiContext;
 use bevy_mod_picking::{
     events::{Click, Pointer},
     prelude::ListenerInput,
 };
-use imgui::{DrawList, DrawListMut, ImColor32, StyleVar};
+use imgui::{DrawListMut, ImColor32};
 
 use super::{
     character::{Character, CharacterStat},
     grid::{Grid, WorldData, WorldEntity},
     health::Health,
+    inventory::{CarriedItems, EquippedItems, Item},
     procgen::PlayerMarker,
     GameStates,
 };
@@ -29,11 +29,7 @@ impl From<ListenerInput<Pointer<Click>>> for ShowEntityDetails {
 pub struct DetailWindowMarker;
 
 pub fn on_show_details(
-    mut commands: Commands,
     mut show_details: EventReader<ShowEntityDetails>,
-    window: Query<&Window, With<PrimaryWindow>>,
-    asset_server: Res<AssetServer>,
-    grid: Res<Grid>,
     world_entities: Query<&WorldEntity>,
 ) {
     for detail in show_details.read() {
@@ -199,7 +195,7 @@ fn draw_hp_bar(
             ImColor32::from_rgb(207, 198, 184),
             "Health:",
         );
-        if let Some(hp) = health.hitpoints.get(i) {
+        if let Some(_hp) = health.hitpoints.get(i) {
             draw.add_rect(pi1, pi2, lite).filled(true).build();
         } else {
             draw.add_rect(pi1, pi2, ImColor32::from_rgb(0, 0, 0))
@@ -211,6 +207,46 @@ fn draw_hp_bar(
             .filled(false)
             .build();
     }
+}
+
+fn show_inventory(
+    mut context: NonSendMut<ImguiContext>,
+    player_entity: Query<
+        (&WorldEntity, &Character, &CarriedItems, &EquippedItems),
+        With<PlayerMarker>,
+    >,
+    items: Query<&Item>,
+) {
+    let ui = context.ui();
+    let Ok((player, player_char, carried_items, equipped_items)) = player_entity.get_single()
+    else {
+        return;
+    };
+
+    ui.window("Inventory")
+        .position_pivot([0.0, 0.0])
+        .position([10.0, 90.0], imgui::Condition::Always)
+        .size([200.0, 500.0], imgui::Condition::Always)
+        .resizable(false)
+        .collapsible(false)
+        .no_decoration()
+        .bg_alpha(1.0)
+        .build(|| {
+            ui.text("Inventory");
+            ui.separator();
+            for (id, item_id) in carried_items
+                .0
+                .iter()
+                .enumerate()
+                .map(|(i, id)| (i + 1, id))
+            {
+                let Ok(item) = items.get(*item_id) else {
+                    continue;
+                };
+
+                ui.text(format!("{}: {} ({:?})", id, item.name, item.item_type));
+            }
+        });
 }
 
 fn show_status_for_world_entities(
@@ -244,7 +280,7 @@ fn show_status_for_world_entities(
         .build(|| {
             let draw = ui.get_window_draw_list();
             ui.text(&player.name);
-
+            ui.separator();
             let p: Vec2 = ui.window_pos().into();
 
             draw_hp_bar(&draw, p, player_health, &health_settings);
@@ -291,7 +327,11 @@ impl Plugin for SvarogUIPlugin {
         bevy.init_resource::<CharacterSettings>();
         bevy.add_systems(
             Update,
-            (show_status_for_world_entities, draw_health_settings)
+            (
+                show_status_for_world_entities,
+                show_inventory,
+                draw_health_settings,
+            )
                 .run_if(in_state(GameStates::Game)),
         );
 

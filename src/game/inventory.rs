@@ -4,7 +4,7 @@ use super::{
     sprites::Tile,
     ui::ShowEntityDetails,
 };
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{prelude::*, render::view::RenderLayers, utils::HashMap};
 use bevy_mod_picking::{
     events::{Click, Pointer},
     prelude::On,
@@ -103,49 +103,89 @@ impl ItemBuilder {
         transform: Transform,
         atlas: Handle<TextureAtlas>,
     ) {
-        let mut item = world.spawn(WorldEntityBundle::new_raw(
-            transform,
-            atlas,
-            &self.name,
-            pos,
-            self.tile,
-            false,
-            WorldEntityKind::Item,
-            None,
-        ));
-        item.insert((
-            Item {
-                name: self.name,
-                image: self.tile,
-                item_type: self.item_type,
-                equip_stat_changes: self.stats.into_iter().collect(),
-            },
-            PickableBundle::default(),
-            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-        ));
+        let color = self
+            .stats
+            .clone()
+            .into_iter()
+            .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
+            .map(|k| k.0.to_color())
+            .unwrap_or(Color::WHITE);
+
+        let child_atlas = atlas.clone();
+        world
+            .spawn(WorldEntityBundle::new_raw(
+                transform,
+                atlas,
+                &self.name,
+                pos,
+                self.tile,
+                false,
+                WorldEntityKind::Item,
+                Some(color),
+            ))
+            .with_children(|f| {
+                f.spawn(((
+                    SpriteSheetBundle {
+                        sprite: TextureAtlasSprite::new(0),
+                        texture_atlas: child_atlas.clone_weak(),
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                        ..Default::default()
+                    },
+                    RenderLayers::layer(1),
+                ),));
+            })
+            .insert((
+                Item {
+                    name: self.name,
+                    image: self.tile,
+                    item_type: self.item_type,
+                    equip_stat_changes: self.stats.into_iter().collect(),
+                },
+                PickableBundle::default(),
+                On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+            ));
     }
 
     pub fn create_at(self, pos: IVec2, commands: &mut Commands, grid: &Res<Grid>) {
-        let mut item = commands.spawn(WorldEntityBundle::new(
-            grid,
-            &self.name,
-            pos,
-            self.tile,
-            false,
-            WorldEntityKind::Item,
-            None,
-        ));
+        let color = self
+            .stats
+            .clone()
+            .into_iter()
+            .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
+            .map(|k| k.0.to_color())
+            .unwrap_or(Color::WHITE);
 
-        item.insert((
-            Item {
-                name: self.name,
-                image: self.tile,
-                item_type: self.item_type,
-                equip_stat_changes: self.stats.into_iter().collect(),
-            },
-            PickableBundle::default(),
-            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-        ));
+        commands
+            .spawn(WorldEntityBundle::new(
+                grid,
+                &self.name,
+                pos,
+                self.tile,
+                false,
+                WorldEntityKind::Item,
+                Some(color),
+            ))
+            .with_children(|f| {
+                f.spawn(((
+                    SpriteSheetBundle {
+                        sprite: TextureAtlasSprite::new(0),
+                        texture_atlas: grid.atlas.clone_weak(),
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                        ..Default::default()
+                    },
+                    RenderLayers::layer(1),
+                ),));
+            })
+            .insert((
+                Item {
+                    name: self.name,
+                    image: self.tile,
+                    item_type: self.item_type,
+                    equip_stat_changes: self.stats.into_iter().collect(),
+                },
+                PickableBundle::default(),
+                On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+            ));
     }
 }
 

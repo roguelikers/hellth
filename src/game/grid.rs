@@ -70,6 +70,7 @@ pub enum WorldEntityKind {
 }
 
 impl WorldEntityBundle {
+    #[allow(clippy::too_many_arguments)]
     pub fn new_raw(
         mut transform: Transform,
         atlas: Handle<TextureAtlas>,
@@ -80,6 +81,11 @@ impl WorldEntityBundle {
         kind: WorldEntityKind,
         color: Option<Color>,
     ) -> Self {
+        let mut sprite = TextureAtlasSprite::new(sprite_index);
+        if let Some(color) = color {
+            sprite.color = color;
+        }
+
         transform.translation.z += match kind {
             WorldEntityKind::Player => 10.0,
             WorldEntityKind::NPC => 5.0,
@@ -94,7 +100,7 @@ impl WorldEntityBundle {
                 is_player: kind == WorldEntityKind::Player,
             },
             sprite: SpriteSheetBundle {
-                sprite: TextureAtlasSprite::new(sprite_index),
+                sprite,
                 texture_atlas: atlas.clone_weak(),
                 transform,
                 ..Default::default()
