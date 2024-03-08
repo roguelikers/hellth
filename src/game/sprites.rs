@@ -38,6 +38,9 @@ pub const EMO_MAGE: Tile = Tile(1, 26);
 pub const SCROLL1: Tile = Tile(15, 34);
 pub const SCROLL2: Tile = Tile(15, 33);
 
+pub const HP_EMPTY: Tile = Tile(14, 39);
+pub const HP_FULL: Tile = Tile(15, 39);
+
 #[derive(Default)]
 pub struct Tiles(Vec<Vec<Tile>>);
 
