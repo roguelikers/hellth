@@ -1,4 +1,7 @@
+use bevy::ecs::system::{Command, SystemState};
 use bevy::prelude::*;
+use bevy::render::view::RenderLayers;
+use bevy::window::PrimaryWindow;
 use bevy_mod_imgui::ImguiContext;
 use bevy_mod_picking::{
     events::{Click, Pointer},
@@ -88,11 +91,171 @@ fn show_status_for_world_entities(
     }
 }
 
-pub struct SvarogUIPlugin;
+#[derive(PartialEq, Eq, Default, Clone, Copy)]
+pub enum HorizontalAlign {
+    #[default]
+    Left,
+    Right,
+}
 
+#[derive(PartialEq, Eq, Default, Clone, Copy)]
+pub enum VerticalAlign {
+    #[default]
+    Up,
+    Down,
+}
+
+fn debug_ui_window(
+    mut commands: Commands,
+    mut context: NonSendMut<ImguiContext>,
+    mut xy: Local<(f32, f32, f32, f32, HorizontalAlign, VerticalAlign)>,
+) {
+    let ui = context.ui();
+
+    let window = ui.window("Debug UI");
+
+    let mut is_left = xy.4 == HorizontalAlign::Left;
+    let mut is_up = xy.5 == VerticalAlign::Up;
+
+    window
+        .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+        .save_settings(true)
+        .build(|| {
+            ui.input_float("X", &mut xy.0).build();
+            ui.input_float("Y", &mut xy.1).build();
+            ui.input_float("W", &mut xy.2).build();
+            ui.input_float("H", &mut xy.3).build();
+
+            let _ = ui.checkbox("Horizontal Left", &mut is_left);
+            let _ = ui.checkbox("Vertical Up", &mut is_up);
+
+            xy.4 = if is_left {
+                HorizontalAlign::Left
+            } else {
+                HorizontalAlign::Right
+            };
+
+            xy.5 = if is_up {
+                VerticalAlign::Up
+            } else {
+                VerticalAlign::Down
+            };
+
+            if ui.button("CREATE!") {
+                commands.add(NewUIWindow {
+                    x: xy.0,
+                    y: xy.1,
+                    w: xy.2,
+                    h: xy.3,
+                    hor: xy.4,
+                    ver: xy.5,
+                });
+            }
+        });
+}
+
+pub struct NewUIWindow {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+    pub hor: HorizontalAlign,
+    pub ver: VerticalAlign,
+}
+
+impl NewUIWindow {
+    pub fn top_left(offset: Vec2, size: Vec2) -> Self {
+        NewUIWindow {
+            x: offset.x,
+            y: offset.y,
+            w: size.x,
+            h: size.y,
+            hor: HorizontalAlign::Left,
+            ver: VerticalAlign::Up,
+        }
+    }
+
+    pub fn top_right(offset: Vec2, size: Vec2) -> Self {
+        NewUIWindow {
+            x: offset.x,
+            y: offset.y,
+            w: size.x,
+            h: size.y,
+            hor: HorizontalAlign::Right,
+            ver: VerticalAlign::Up,
+        }
+    }
+
+    pub fn bottom_left(offset: Vec2, size: Vec2) -> Self {
+        NewUIWindow {
+            x: offset.x,
+            y: offset.y,
+            w: size.x,
+            h: size.y,
+            hor: HorizontalAlign::Left,
+            ver: VerticalAlign::Down,
+        }
+    }
+
+    pub fn bottom_right(offset: Vec2, size: Vec2) -> Self {
+        NewUIWindow {
+            x: offset.x,
+            y: offset.y,
+            w: size.x,
+            h: size.y,
+            hor: HorizontalAlign::Right,
+            ver: VerticalAlign::Down,
+        }
+    }
+}
+
+impl Command for NewUIWindow {
+    fn apply(self, world: &mut World) {
+        let (x, y, texture) = {
+            let mut world_state =
+                SystemState::<(Res<AssetServer>, Query<&Window, With<PrimaryWindow>>)>::new(world);
+            let (asset_server, windows) = world_state.get_mut(world);
+
+            let window = windows.single();
+            let size = (window.width(), window.height());
+
+            let half_size = Vec2::new((size.0 - self.w) / 2.0, -(size.1 - self.h) / 2.0);
+            let left_top = -half_size;
+
+            let hor_align_offset = if self.hor == HorizontalAlign::Left {
+                0.0f32
+            } else {
+                2.0 * half_size.x
+            };
+
+            let ver_align_offset = if self.ver == VerticalAlign::Up {
+                0.0f32
+            } else {
+                2.0 * half_size.y
+            };
+            let x = hor_align_offset + self.x + left_top.x;
+            let y = ver_align_offset + -self.y + left_top.y;
+
+            (x, y, asset_server.load("black.png"))
+        };
+
+        world.spawn((
+            SpriteBundle {
+                texture,
+                transform: Transform::from_translation(Vec3::new(x, y, 0.0))
+                    .with_scale(Vec3::new(self.w, self.h, 1.0)),
+                ..Default::default()
+            },
+            RenderLayers::layer(2),
+        ));
+    }
+}
+
+pub struct SvarogUIPlugin;
 impl Plugin for SvarogUIPlugin {
     fn build(&self, bevy: &mut App) {
         bevy.add_event::<ShowEntityDetails>();
+
         bevy.add_systems(
             Update,
             show_status_for_world_entities.run_if(in_state(GameStates::Game)),
@@ -102,5 +265,7 @@ impl Plugin for SvarogUIPlugin {
             Update,
             on_show_details.run_if(on_event::<ShowEntityDetails>()),
         );
+
+        bevy.add_systems(Update, debug_ui_window);
     }
 }

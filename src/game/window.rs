@@ -1,7 +1,7 @@
 use bevy::{
     app::{Plugin, Startup},
     render::texture::ImagePlugin,
-    window::{Window, WindowPlugin},
+    window::{PrimaryWindow, Window, WindowPlugin},
     winit::WinitWindows,
     DefaultPlugins,
 };
@@ -35,6 +35,9 @@ pub struct FpsRoot;
 
 #[derive(Component)]
 pub struct FpsText;
+
+#[derive(Resource)]
+pub struct MainWindowSize(pub f32, pub f32);
 
 pub fn setup_fps_counter(mut commands: Commands) {
     let root = commands
@@ -135,7 +138,8 @@ impl Plugin for SvarogWindowPlugins {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Svarog".into(),
+                        title: "HELLTH".into(),
+                        mode: bevy::window::WindowMode::BorderlessFullscreen,
                         ..Default::default()
                     }),
                     ..Default::default()
@@ -154,7 +158,14 @@ impl Plugin for SvarogWindowPlugins {
             .add_plugins(bevy_mod_imgui::ImguiPlugin {
                 ini_filename: Some("imgui.ini".into()),
                 ..Default::default()
-            });
+            })
+            .add_systems(
+                Startup,
+                |mut commands: Commands, window: Query<&Window, With<PrimaryWindow>>| {
+                    let win = window.single();
+                    commands.insert_resource(MainWindowSize(win.width(), win.height()));
+                },
+            );
 
         #[cfg(feature = "debug_mode")]
         bevy.add_plugins(FrameTimeDiagnosticsPlugin);

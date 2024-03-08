@@ -4,7 +4,10 @@ use bevy::{
     render::{camera::ScalingMode, view::RenderLayers},
 };
 use bevy_mod_imgui::prelude::*;
-use bevy_mouse_tracking_plugin::mouse_pos::{InitMouseTracking, InitWorldTracking};
+use bevy_mouse_tracking_plugin::{
+    mouse_pos::{InitMouseTracking, InitWorldTracking},
+    MainCamera,
+};
 use bevy_trauma_shake::{Shake, ShakeSettings};
 
 use super::{
@@ -18,6 +21,9 @@ pub struct MainCameraMarker;
 
 #[derive(Component)]
 pub struct FollowCameraMarker;
+
+#[derive(Component)]
+pub struct UICameraMarker;
 
 #[derive(Default)]
 pub enum CameraMovingMode {
@@ -90,7 +96,7 @@ pub fn track_camera(
 }
 
 fn debug_camera(
-    mut camera_query: Query<&mut OrthographicProjection>,
+    mut camera_query: Query<&mut OrthographicProjection, Without<UICameraMarker>>,
     keys: Res<Input<KeyCode>>,
     mut context: NonSendMut<ImguiContext>,
     mut camera_settings: ResMut<CameraSettings>,
@@ -162,6 +168,29 @@ fn setup_cameras(mut commands: Commands, mut procgen_events: EventWriter<ProcGen
         RenderLayers::layer(0),
     ));
 
+    commands.spawn((
+        Camera2dBundle {
+            camera_2d: Camera2d {
+                clear_color: ClearColorConfig::None,
+            },
+            projection: OrthographicProjection {
+                far: 1000.,
+                near: -1000.,
+                scale: 1.0,
+                scaling_mode: ScalingMode::WindowSize(2.0),
+                ..Default::default()
+            },
+            camera: Camera {
+                order: 1,
+                ..Default::default()
+            },
+
+            ..Default::default()
+        },
+        FollowCameraMarker,
+        RenderLayers::layer(1),
+    ));
+
     commands
         .spawn((
             Camera2dBundle {
@@ -172,19 +201,19 @@ fn setup_cameras(mut commands: Commands, mut procgen_events: EventWriter<ProcGen
                     far: 1000.,
                     near: -1000.,
                     scale: 1.0,
-                    scaling_mode: ScalingMode::WindowSize(2.0),
+                    scaling_mode: ScalingMode::WindowSize(1.0),
                     ..Default::default()
                 },
                 camera: Camera {
-                    order: 1,
+                    order: 2,
                     ..Default::default()
                 },
-
                 ..Default::default()
             },
-            FollowCameraMarker,
-            RenderLayers::layer(1),
+            RenderLayers::layer(2),
+            UICameraMarker,
         ))
+        .insert(MainCamera)
         .add(InitMouseTracking)
         .add(InitWorldTracking);
 
