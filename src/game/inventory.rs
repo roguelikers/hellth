@@ -111,6 +111,7 @@ impl ItemBuilder {
             self.tile,
             false,
             WorldEntityKind::Item,
+            None,
         ));
         item.insert((
             Item {
@@ -132,6 +133,7 @@ impl ItemBuilder {
             self.tile,
             false,
             WorldEntityKind::Item,
+            None,
         ));
 
         item.insert((

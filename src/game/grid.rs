@@ -10,7 +10,10 @@ use bevy::{
         system::{Commands, Query, Res, ResMut, Resource},
     },
     math::{IVec2, Vec3},
-    render::view::{RenderLayers, Visibility},
+    render::{
+        color::Color,
+        view::{RenderLayers, Visibility},
+    },
     sprite::{SpriteSheetBundle, TextureAtlas, TextureAtlasSprite},
     transform::components::Transform,
     utils::{hashbrown::HashMap, HashSet},
@@ -51,6 +54,12 @@ pub struct WorldEntityBundle {
     pub marker: WorldEntityMarker,
     pub layer: RenderLayers,
     pub fov: FOV,
+    pub color: WorldEntityColor,
+}
+
+#[derive(Component)]
+pub struct WorldEntityColor {
+    pub color: Color,
 }
 
 #[derive(PartialEq, Eq)]
@@ -69,6 +78,7 @@ impl WorldEntityBundle {
         sprite_index: usize,
         blocking: bool,
         kind: WorldEntityKind,
+        color: Option<Color>,
     ) -> Self {
         transform.translation.z += match kind {
             WorldEntityKind::Player => 10.0,
@@ -92,6 +102,9 @@ impl WorldEntityBundle {
             marker: WorldEntityMarker,
             layer: RenderLayers::layer(1),
             fov: FOV,
+            color: WorldEntityColor {
+                color: color.unwrap_or(Color::WHITE),
+            },
         }
     }
 
@@ -102,6 +115,7 @@ impl WorldEntityBundle {
         sprite_index: usize,
         blocking: bool,
         kind: WorldEntityKind,
+        color: Option<Color>,
     ) -> Self {
         let mut transform = grid.get_tile_position(pos);
         transform.translation.z += match kind {
@@ -109,6 +123,11 @@ impl WorldEntityBundle {
             WorldEntityKind::NPC => 5.0,
             WorldEntityKind::Item => 1.0,
         };
+
+        let mut sprite = TextureAtlasSprite::new(sprite_index);
+        if let Some(color) = color {
+            sprite.color = color;
+        }
 
         WorldEntityBundle {
             entity: WorldEntity {
@@ -119,7 +138,7 @@ impl WorldEntityBundle {
                 is_player: kind == WorldEntityKind::Player,
             },
             sprite: SpriteSheetBundle {
-                sprite: TextureAtlasSprite::new(sprite_index),
+                sprite,
                 texture_atlas: grid.atlas.clone_weak(),
                 transform,
                 ..Default::default()
@@ -127,6 +146,9 @@ impl WorldEntityBundle {
             marker: WorldEntityMarker,
             layer: RenderLayers::layer(1),
             fov: FOV,
+            color: WorldEntityColor {
+                color: color.unwrap_or(Color::WHITE),
+            },
         }
     }
 }

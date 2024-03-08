@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting};
 
 use super::{
-    grid::{Grid, WorldData, WorldEntity, FOV},
+    grid::{Grid, WorldData, WorldEntity, WorldEntityColor, FOV},
     health::Health,
     inventory::CarriedMarker,
     procgen::PlayerMarker,
@@ -30,7 +30,10 @@ pub fn recalculate_fov(
     player_entity: Query<(&WorldEntity, &Health, &Sight), With<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     map: Option<ResMut<WorldData>>,
-    mut non_players: Query<(Entity, &WorldEntity, &mut Transform), Without<PlayerMarker>>,
+    mut non_players: Query<
+        (Entity, &WorldEntity, &mut Transform, &WorldEntityColor),
+        Without<PlayerMarker>,
+    >,
     carried: Query<&CarriedMarker>,
     mut sprites: Query<&mut TextureAtlasSprite>,
     mut visibility: Query<&mut Visibility>,
@@ -68,7 +71,7 @@ pub fn recalculate_fov(
             sprite.color = Color::ORANGE_RED;
         });
 
-        for (non_player_entity, world_entity, mut transform) in &mut non_players {
+        for (non_player_entity, world_entity, mut transform, _color) in &mut non_players {
             transform.translation = grid.get_tile_position(world_entity.position).translation;
 
             let Ok(mut vis) = visibility.get_mut(non_player_entity) else {
@@ -116,7 +119,7 @@ pub fn recalculate_fov(
         }
     });
 
-    for (non_player_entity, world_entity, mut transform) in &mut non_players {
+    for (non_player_entity, world_entity, mut transform, color) in &mut non_players {
         let Ok(mut vis) = visibility.get_mut(non_player_entity) else {
             continue;
         };
@@ -132,7 +135,7 @@ pub fn recalculate_fov(
 
         if map.data.is_in_fov(x, y) {
             *vis = Visibility::Visible;
-            sprite.color = Color::WHITE;
+            sprite.color = color.color;
             transform.translation = grid.get_tile_position(world_entity.position).translation;
         } else {
             *vis = Visibility::Hidden;

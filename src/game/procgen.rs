@@ -1,5 +1,6 @@
 use bevy::{
     prelude::*,
+    render::view::RenderLayers,
     utils::{HashMap, HashSet},
 };
 use bevy_mod_picking::{
@@ -350,47 +351,74 @@ pub fn generate_level(
         EMO_MAGE.into(),
         true,
         WorldEntityKind::Player,
+        None,
     ));
-    player.insert((
-        Character {
-            agility: 6,
-            ..Default::default()
-        },
-        CarriedItems::default(),
-        EquippedItems::default(),
-        PlayerMarker,
-        PlayerState::default(),
-        PendingActions::default(),
-        Health::new(10),
-        TurnTaker,
-        PickableBundle::default(),
-        On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-        Sight(6),
-    ));
+    player
+        .with_children(|f| {
+            f.spawn((
+                SpriteSheetBundle {
+                    sprite: TextureAtlasSprite::new(0),
+                    texture_atlas: grid.atlas.clone_weak(),
+                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                    ..Default::default()
+                },
+                RenderLayers::layer(1),
+            ));
+        })
+        .insert((
+            Character {
+                agility: 6,
+                ..Default::default()
+            },
+            CarriedItems::default(),
+            EquippedItems::default(),
+            PlayerMarker,
+            PlayerState::default(),
+            PendingActions::default(),
+            Health::new(10),
+            TurnTaker,
+            PickableBundle::default(),
+            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+            Sight(6),
+        ));
 
     // add mobs
     for i in 1..10 {
+        let char = Character::random(&mut rng);
         let index: usize = OLD_MAGE.into();
-        let mut mage = commands.spawn(WorldEntityBundle::new(
-            &grid,
-            format!("Mage {}", i).as_str(),
-            places.pop().unwrap_or_default(),
-            index + rng.gen(0..7) as usize,
-            true,
-            WorldEntityKind::NPC,
-        ));
 
-        mage.insert((
-            TurnTaker,
-            Character::random(&mut rng),
-            AIAgent::default(),
-            CarriedItems::default(),
-            EquippedItems::default(),
-            PendingActions::default(),
-            PickableBundle::default(),
-            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-            Health::new(5),
-        ));
+        commands
+            .spawn(WorldEntityBundle::new(
+                &grid,
+                format!("Mage {}", i).as_str(),
+                places.pop().unwrap_or_default(),
+                index + rng.gen(0..7) as usize,
+                true,
+                WorldEntityKind::NPC,
+                Some(char.get_strongest_stat_color()),
+            ))
+            .with_children(|f| {
+                f.spawn(((
+                    SpriteSheetBundle {
+                        sprite: TextureAtlasSprite::new(0),
+                        texture_atlas: grid.atlas.clone_weak(),
+                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                        ..Default::default()
+                    },
+                    RenderLayers::layer(1),
+                ),));
+            })
+            .insert((
+                TurnTaker,
+                char,
+                AIAgent::default(),
+                CarriedItems::default(),
+                EquippedItems::default(),
+                PendingActions::default(),
+                PickableBundle::default(),
+                On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+                Health::new(5),
+            ));
     }
     turn_order_progress.send(TurnOrderProgressEvent);
 }
