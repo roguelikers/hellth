@@ -11,7 +11,7 @@ use super::{
     character::{Character, CharacterStat},
     grid::{Grid, WorldData, WorldEntity, WorldEntityColor},
     health::Health,
-    history::{History, HistoryLog},
+    history::HistoryLog,
     inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
     magic::Magic,
     procgen::PlayerMarker,
@@ -334,14 +334,18 @@ fn show_inventory(
                     ui.text("  Actions:");
                     for action in item.available_actions() {
                         let action_text = match action {
-                            ItemActions::Drop => "[D]rop",
-                            ItemActions::Equip => "[E]quip",
-                            ItemActions::Remove => "[R]emove",
-                            ItemActions::Throw => "[T]hrow",
-                            ItemActions::Consume => "[C]onsume",
-                            ItemActions::Examine => "E[x]amine",
+                            ItemActions::Drop => Some("[D]rop"),
+                            ItemActions::Equip if !equipped => Some("[E]quip"),
+                            ItemActions::Unequip if equipped => Some("Un[E]quip"),
+                            ItemActions::Throw => Some("[T]hrow"),
+                            ItemActions::Consume => Some("[C]onsume"),
+                            ItemActions::Examine => Some("E[x]amine"),
+                            _ => None,
                         };
-                        ui.text(format!("    {}", action_text));
+
+                        if action_text.is_some() {
+                            ui.text(format!("    {}", action_text.unwrap()));
+                        }
                     }
                 }
 

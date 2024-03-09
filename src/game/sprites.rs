@@ -43,6 +43,25 @@ pub const HP_FULL: Tile = Tile(15, 39);
 
 pub const SELECTION: Tile = Tile(12, 37);
 
+pub const STAFF1: Tile = Tile(4, 32);
+pub const STAFF2: Tile = Tile(4, 33);
+pub const STAFF3: Tile = Tile(4, 34);
+pub const STAFF4: Tile = Tile(5, 32);
+pub const STAFF5: Tile = Tile(5, 33);
+pub const STAFF6: Tile = Tile(5, 34);
+
+pub const DAGGER1: Tile = Tile(6, 32);
+pub const DAGGER2: Tile = Tile(6, 33);
+pub const DAGGER3: Tile = Tile(6, 34);
+pub const DAGGER4: Tile = Tile(6, 35);
+pub const DAGGER5: Tile = Tile(6, 36);
+
+pub const SWORD1: Tile = Tile(7, 32);
+pub const SWORD2: Tile = Tile(7, 33);
+pub const SWORD3: Tile = Tile(7, 34);
+pub const SWORD4: Tile = Tile(7, 35);
+pub const SWORD5: Tile = Tile(7, 36);
+
 #[derive(Default)]
 pub struct Tiles(Vec<Vec<Tile>>);
 

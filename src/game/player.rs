@@ -3,7 +3,7 @@ use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformS
 use crate::game::actions::{a_drop, a_move};
 
 use super::{
-    actions::{a_consume, a_pickup, a_wait, ActionEvent},
+    actions::{a_consume, a_equip, a_pickup, a_unequip, a_wait, ActionEvent},
     ai::PendingActions,
     character::Character,
     grid::{WorldData, WorldEntity},
@@ -213,8 +213,8 @@ pub fn character_controls(
                         ItemActions::Equip if !equipped.0.contains(&item_entity) => {
                             Some(KeyCode::E)
                         }
-                        ItemActions::Remove if equipped.0.contains(&item_entity) => {
-                            Some(KeyCode::R)
+                        ItemActions::Unequip if equipped.0.contains(&item_entity) => {
+                            Some(KeyCode::E)
                         }
                         ItemActions::Throw => Some(KeyCode::T),
                         ItemActions::Consume => Some(KeyCode::C),
@@ -231,8 +231,12 @@ pub fn character_controls(
                             ItemActions::Drop => {
                                 taken_action = Some(ActionEvent(a_drop(entity, vec![item_entity])));
                             }
-                            ItemActions::Equip => todo!(),
-                            ItemActions::Remove => todo!(),
+                            ItemActions::Equip => {
+                                taken_action = Some(ActionEvent(a_equip(entity, item_entity)));
+                            }
+                            ItemActions::Unequip => {
+                                taken_action = Some(ActionEvent(a_unequip(entity, item_entity)));
+                            }
                             ItemActions::Throw => todo!(),
                             ItemActions::Consume => {
                                 taken_action = Some(ActionEvent(a_consume(entity, item_entity)));

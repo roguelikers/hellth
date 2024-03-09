@@ -341,20 +341,77 @@ pub fn generate_level(
 
     let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
 
-    // add stuff
-    for _ in 1..20 {
+    // add staffs
+    for _ in 1..5 {
         let mut builder = ItemBuilder::default()
-            .with_name("Arcane Scroll")
-            .with_image(rng.from(&[SCROLL1, SCROLL2]))
-            .with_type(ItemType::Scroll);
+            .with_name("Staff")
+            .with_image(rng.from(&[STAFF1, STAFF2, STAFF3, STAFF4, STAFF5]))
+            .with_type(ItemType::Weapon);
 
-        for _ in 0..rng.gen(1..3) {
+        builder = builder.with_stat(CharacterStat::ARC, 1);
+        builder = builder.with_stat(CharacterStat::WIS, 1);
+        for _ in 0..rng.gen(0..2) {
+            let mut stat = rng.from(&stats);
             let mut power = 0;
-            while power == 0 {
-                power = rng.gen(-3..3);
+            while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
+                power = rng.gen(-1..3);
+                stat = rng.from(&stats);
             }
 
-            builder = builder.with_stat(rng.from(&stats), power);
+            builder = builder.with_stat(stat, power);
+        }
+
+        builder.create_at(
+            places.pop().unwrap_or_default(),
+            &mut commands,
+            &grid,
+            &magic,
+        )
+    }
+
+    // add swords
+    for _ in 1..3 {
+        let mut builder = ItemBuilder::default()
+            .with_name("Sword")
+            .with_image(rng.from(&[SWORD1, SWORD2, SWORD3, SWORD4, SWORD5]))
+            .with_type(ItemType::Weapon);
+
+        builder = builder.with_stat(CharacterStat::STR, 2);
+        for _ in 0..rng.gen(0..2) {
+            let mut stat = rng.from(&stats);
+            let mut power = 0;
+            while power == 0 || stat == CharacterStat::STR {
+                power = rng.gen(-1..3);
+                stat = rng.from(&stats);
+            }
+
+            builder = builder.with_stat(stat, power);
+        }
+
+        builder.create_at(
+            places.pop().unwrap_or_default(),
+            &mut commands,
+            &grid,
+            &magic,
+        )
+    }
+
+    for _ in 1..3 {
+        let mut builder = ItemBuilder::default()
+            .with_name("Dagger")
+            .with_image(rng.from(&[DAGGER1, DAGGER2, DAGGER3, DAGGER4, DAGGER5]))
+            .with_type(ItemType::Weapon);
+
+        builder = builder.with_stat(CharacterStat::AGI, 2);
+        for _ in 0..rng.gen(0..2) {
+            let mut stat = rng.from(&stats);
+            let mut power = 0;
+            while power == 0 || stat == CharacterStat::AGI {
+                power = rng.gen(-2..2);
+                stat = rng.from(&stats);
+            }
+
+            builder = builder.with_stat(stat, power);
         }
 
         builder.create_at(
