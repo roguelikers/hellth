@@ -403,7 +403,6 @@ pub fn generate_level(
         })
         .insert((
             Character {
-                strength: 9,
                 agility: 3,
                 ..Default::default()
             },
