@@ -136,7 +136,7 @@ pub fn recalculate_fov(
 
         if map.data.is_in_fov(x, y) {
             *vis = Visibility::Visible;
-            if character.wisdom > 3 && character.arcane > 3 {
+            if character.wisdom > 3 && character.arcana > 3 {
                 sprite.color = color.color;
             } else {
                 sprite.color = Color::WHITE;

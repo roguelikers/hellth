@@ -1,82 +1,37 @@
-/*
-
-   level 1 spell
-   level 2 spell = level 1 + focus | level 1 + chant
-   level 3 spell = level 1 + focus + chant
-   level 4 spell = level 1 + 2 fokus | level 1 + 2 chant < 4 kruga
-
-           [=======BBB] 10  -1 hp po krugu
-           [=======BB-] 9
-           [=======B--] 8
-           [=======---] 7
-
-       FOCUS
-
-           [=====BBB==] 10  -1 hp po krugu, fokus
-           [=====BBB=-] 9
-           [=====BBB--] 8
-           [=====BB---] 7
-           [=====B----] 6
-           [=====-----] 5
-
-           [=====BBB==] 10  -1 hp po krugu
-           [=====-----] 10
-           [==HHH-----]
-           [===HHH----] <<<
-
-       CHANT
-
-           [=====B=B=B]
-           fokus
-           bacis spel 3
-           [=====HHH=-]
-           [=====B=HHH]
-
-           bacis AGGRO na sve oko sebe
-           [====AAA===]
-
-       MOVE
-
-           [=====BBB==] 10
-           tri koraka
-           [======BBB=] 10
-           tri koraka
-           [=======BBB] 10
-
-       TRIGGER
-
-           [=T========] 10
-*/
-
-use bevy::ecs::{component::Component, entity::Entity};
+use bevy::{ecs::component::Component, utils::HashMap};
 use std::collections::VecDeque;
-use std::fmt::Debug;
+
+use super::character::CharacterStat;
+
+#[derive(Component, Default)]
+pub struct RecoveryCounter(pub u32);
 
 #[derive(Default, Clone)]
 pub struct HitPoint {
-    pub spell: Option<Entity>,
+    pub stat: Option<(CharacterStat, i32)>,
+}
+
+impl HitPoint {
+    pub fn enchant(&mut self, chant: (CharacterStat, i32)) -> HashMap<CharacterStat, i32> {
+        let mut hash = HashMap::new();
+
+        if let Some((old, val)) = self.stat {
+            hash.insert(old, -val);
+        }
+        self.stat = Some(chant);
+        if hash.contains_key(&chant.0) {
+            hash.entry(chant.0).and_modify(|v| *v += chant.1);
+        } else {
+            hash.insert(chant.0, chant.1);
+        }
+        hash
+    }
 }
 
 #[derive(Component, Clone)]
 pub struct Health {
     pub size: usize,
     pub hitpoints: VecDeque<HitPoint>,
-}
-
-impl Debug for Health {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut hps = self
-            .hitpoints
-            .iter()
-            .map(|h| if h.spell.is_none() { "=" } else { "S" })
-            .collect::<Vec<_>>()
-            .join("");
-
-        if hps.len() < self.size {
-            hps += &"-".repeat(self.size - hps.len());
-        }
-        f.write_fmt(format_args!("[{}]", hps))
-    }
 }
 
 impl Health {
@@ -87,10 +42,21 @@ impl Health {
         }
     }
 
-    pub fn normal_damage(&mut self, n: usize) {
+    pub fn normal_damage(&mut self, n: usize) -> HashMap<CharacterStat, i32> {
+        let mut result = HashMap::new();
         for _ in 0..n {
-            let _ = self.hitpoints.pop_back();
+            if let Some(rightmost) = self.hitpoints.pop_back() {
+                if let Some((stat, val)) = rightmost.stat {
+                    if result.contains_key(&stat) {
+                        *result.get_mut(&stat).unwrap() -= val;
+                    } else {
+                        result.insert(stat, -val);
+                    }
+                }
+            }
         }
+
+        result
     }
 
     pub fn normal_heal(&mut self, n: usize) {

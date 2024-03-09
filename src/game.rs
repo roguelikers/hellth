@@ -5,8 +5,9 @@ use bevy_trauma_shake::TraumaPlugin;
 use self::{
     actions::SvarogActionsPlugin, ai::SvarogAIPlugin, camera::SvarogCameraPlugin,
     feel::SvarogFeelPlugin, grid::SvarogGridPlugin, history::SvarogHistoryPlugin,
-    loading::SvarogLoadingPlugin, player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin,
-    turns::SvarogTurnPlugin, ui::SvarogUIPlugin, window::SvarogWindowPlugins,
+    inventory::SvarogInventoryPlugin, loading::SvarogLoadingPlugin, magic::SvarogMagicPlugin,
+    player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin, turns::SvarogTurnPlugin,
+    ui::SvarogUIPlugin, window::SvarogWindowPlugins,
 };
 
 pub mod actions;
@@ -20,6 +21,7 @@ pub mod health;
 pub mod history;
 pub mod inventory;
 pub mod loading;
+pub mod magic;
 pub mod player;
 pub mod procgen;
 pub mod spells;
@@ -60,6 +62,7 @@ impl Plugin for SvarogGamePlugin {
     fn build(&self, bevy: &mut App) {
         bevy.insert_resource::<DebugFlag>(DebugFlag(false))
             .add_plugins(SvarogWindowPlugins)
+            .add_plugins(SvarogMagicPlugin)
             .add_plugins(SvarogHistoryPlugin)
             .add_plugins(SvarogLoadingPlugin)
             .add_plugins(SvarogActionsPlugin)
@@ -70,6 +73,7 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogTurnPlugin)
             .add_plugins(SvarogPlayerPlugin)
             .add_plugins(SvarogAIPlugin)
+            .add_plugins(SvarogInventoryPlugin)
             .add_plugins(SvarogUIPlugin)
             .add_plugins(TraumaPlugin);
     }

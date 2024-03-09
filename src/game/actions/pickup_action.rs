@@ -3,7 +3,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use crate::game::{
     character::CharacterStat,
     grid::WorldEntity,
-    history::History,
+    history::HistoryLog,
     inventory::{CarriedItems, CarriedMarker, Item},
 };
 
@@ -28,7 +28,7 @@ impl Action for PickupAction {
         let mut read_system_state = SystemState::<(
             Query<(&WorldEntity, Option<&mut CarriedItems>)>,
             Query<(&Item, &mut Visibility)>,
-            ResMut<History>,
+            ResMut<HistoryLog>,
         )>::new(world);
 
         let (mut world_entities, mut items, mut log) = read_system_state.get_mut(world);
@@ -51,11 +51,10 @@ impl Action for PickupAction {
                 mark_carried.push(*item_entity);
 
                 if person_entity.is_player {
-                    log.0.push(format!("Picked up {}.", item.name));
+                    log.add(&format!("Picked up {}.", item.name));
                 }
             } else {
-                log.0
-                    .push("No more space for items. Drop something first.".to_string());
+                log.add("No more space for items. Drop something first.");
             }
         }
 

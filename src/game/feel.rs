@@ -1,10 +1,22 @@
 use std::ops::Range;
 
-use bevy::{app::Plugin, ecs::system::Resource, math::IVec2};
+use bevy::{
+    app::{Plugin, Update},
+    ecs::{
+        component::Component,
+        schedule::{common_conditions::in_state, IntoSystemConfigs},
+        system::{Local, Query, Res, Resource},
+    },
+    math::{IVec2, Vec3},
+    time::Time,
+    transform::components::Transform,
+};
 use bevy_rand::{prelude::WyRand, resource::GlobalEntropy};
 
 use funty::Unsigned;
 use rand_core::RngCore;
+
+use super::GameStates;
 
 #[derive(Resource, Default)]
 pub struct Random(GlobalEntropy<WyRand>);
@@ -40,11 +52,30 @@ impl Random {
     }
 }
 
+#[derive(Component)]
+pub struct TweenSize {
+    pub baseline: f32,
+    pub max: f32,
+}
+
+pub fn tween_size(
+    mut tweens: Query<(&mut Transform, &TweenSize)>,
+    time: Res<Time>,
+    mut sine: Local<f32>,
+) {
+    *sine += time.delta_seconds();
+
+    for (mut transform, tween) in &mut tweens {
+        let v = tween.baseline + tween.max * sine.sin();
+        transform.scale = Vec3::new(v, v, v);
+    }
+}
+
 pub struct SvarogFeelPlugin;
 
 impl Plugin for SvarogFeelPlugin {
     fn build(&self, bevy: &mut bevy::prelude::App) {
-        //bevy.add_plugins(TweeningPlugin);
-        bevy.insert_resource(Random::default());
+        bevy.insert_resource(Random::default())
+            .add_systems(Update, tween_size.run_if(in_state(GameStates::Game)));
     }
 }

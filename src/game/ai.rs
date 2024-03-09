@@ -16,7 +16,7 @@ use super::{
     grid::WorldEntity,
     health::Health,
     procgen::PlayerMarker,
-    turns::TurnOrder,
+    turns::{EndTurnEvent, TurnOrder},
     GameStates,
 };
 
@@ -53,6 +53,7 @@ pub fn ai_agents_act(
     player: Query<(Entity, &WorldEntity), With<PlayerMarker>>,
     mut non_players: Query<(&Character, &AIAgent, &mut PendingActions), Without<PlayerMarker>>,
     mut actions: EventWriter<ActionEvent>,
+    mut turn_ended_events: EventWriter<EndTurnEvent>,
 ) {
     let Ok((player_entity, _player_world)) = player.get_single() else {
         return;
@@ -76,6 +77,7 @@ pub fn ai_agents_act(
 
                 if current_energy.0 == 0 {
                     turn_order.restart_turn();
+                    turn_ended_events.send(EndTurnEvent);
                     return;
                 }
 

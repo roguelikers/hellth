@@ -1,6 +1,7 @@
 use super::{
     character::CharacterStat,
     grid::{Grid, WorldEntityBundle, WorldEntityKind},
+    magic::Magic,
     sprites::Tile,
     ui::ShowEntityDetails,
 };
@@ -18,6 +19,29 @@ pub struct Item {
     pub image: usize,
     pub item_type: ItemType,
     pub equip_stat_changes: Vec<(CharacterStat, i32)>,
+}
+
+#[derive(PartialEq, Eq, Debug)]
+pub enum ItemActions {
+    Drop,
+    Equip,
+    Remove,
+    Throw,
+    Consume,
+    Examine,
+}
+
+impl Item {
+    pub fn available_actions(&self) -> Vec<ItemActions> {
+        match self.item_type {
+            ItemType::Unknown => vec![ItemActions::Drop],
+            ItemType::Artifact => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
+            ItemType::Weapon => vec![ItemActions::Drop, ItemActions::Equip, ItemActions::Remove],
+            ItemType::Armor => vec![ItemActions::Drop, ItemActions::Equip, ItemActions::Remove],
+            ItemType::Potion => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
+            ItemType::Scroll => vec![ItemActions::Drop, ItemActions::Examine],
+        }
+    }
 }
 
 impl Debug for Item {
@@ -41,6 +65,9 @@ pub struct EquippedItems(pub Vec<Entity>);
 #[derive(Component, Default)]
 pub struct CarriedItems(pub Vec<Entity>);
 
+#[derive(Resource, Default)]
+pub struct CurrentlySelectedItem(pub Option<Entity>);
+
 #[derive(Component)]
 pub struct CarriedMarker;
 
@@ -48,10 +75,11 @@ pub struct CarriedMarker;
 pub enum ItemType {
     #[default]
     Unknown,
-    Spell,
     Artifact,
-    Food,
+    Weapon,
+    Armor,
     Potion,
+    Scroll,
 }
 
 #[derive(Default)]
@@ -98,13 +126,18 @@ impl ItemBuilder {
         transform: Transform,
         atlas: Handle<TextureAtlas>,
     ) {
-        let color = self
-            .stats
-            .clone()
-            .into_iter()
-            .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
-            .map(|k| k.0.to_color())
-            .unwrap_or(Color::WHITE);
+        let color = {
+            if let Some(magic) = world.get_resource::<Magic>() {
+                self.stats
+                    .clone()
+                    .into_iter()
+                    .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
+                    .map(|k| magic[k.0])
+                    .unwrap_or(Color::WHITE)
+            } else {
+                Color::WHITE
+            }
+        };
 
         let child_atlas = atlas.clone();
         world
@@ -141,14 +174,21 @@ impl ItemBuilder {
             ));
     }
 
-    pub fn create_at(self, pos: IVec2, commands: &mut Commands, grid: &Res<Grid>) {
-        let color = self
-            .stats
-            .clone()
-            .into_iter()
-            .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
-            .map(|k| k.0.to_color())
-            .unwrap_or(Color::WHITE);
+    pub fn create_at(
+        self,
+        pos: IVec2,
+        commands: &mut Commands,
+        grid: &Res<Grid>,
+        magic: &ResMut<Magic>,
+    ) {
+        let color = {
+            self.stats
+                .clone()
+                .into_iter()
+                .max_by(|(_, v1), (_, v2)| v1.cmp(v2))
+                .map(|k| magic[k.0])
+                .unwrap_or(Color::WHITE)
+        };
 
         commands
             .spawn(WorldEntityBundle::new(
@@ -186,4 +226,12 @@ impl ItemBuilder {
 
 pub fn item() -> ItemBuilder {
     ItemBuilder::default()
+}
+
+pub struct SvarogInventoryPlugin;
+
+impl Plugin for SvarogInventoryPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<CurrentlySelectedItem>();
+    }
 }

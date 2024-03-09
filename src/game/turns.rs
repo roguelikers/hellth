@@ -4,7 +4,9 @@ use priority_queue::PriorityQueue;
 
 use super::{
     ai::{AIAgent, PendingActions},
+    character::Character,
     grid::WorldEntity,
+    health::{Health, HitPoint, RecoveryCounter},
     DebugFlag,
 };
 
@@ -30,6 +32,12 @@ pub struct TurnOrderProgressEvent;
 
 #[derive(Event)]
 pub struct StartTurnEvent(pub Entity);
+
+#[derive(Event)]
+pub struct EndTurnEvent;
+
+#[derive(Resource, Default)]
+pub struct TurnCounter(pub u32);
 
 impl TurnOrder {
     pub fn clear(&mut self) {
@@ -79,12 +87,54 @@ pub fn add_entity_to_turn_queue(
 pub fn turn_order_progress(
     mut turn_order: ResMut<TurnOrder>,
     mut start_turn_events: EventWriter<StartTurnEvent>,
+    mut end_turn_events: EventWriter<EndTurnEvent>,
 ) {
     if turn_order.peek().is_some() && turn_order.is_turn_done() {
         turn_order.restart_turn();
+        end_turn_events.send(EndTurnEvent);
     } else if let Some(ping_target) = turn_order.should_ping {
         start_turn_events.send(StartTurnEvent(ping_target));
         turn_order.should_ping = None;
+    }
+}
+
+fn get_recovery_based_on_str(str: i32) -> u32 {
+    match str {
+        i32::MIN..=0_i32 => 7,
+        1 => 6,
+        2 => 5,
+        3 => 2,
+        4 => 4,
+        5 => 4,
+        6 => 3,
+        7 => 3,
+        8 => 2,
+        9 => 2,
+        10_i32..=i32::MAX => 1,
+    }
+}
+
+fn on_turn_end(
+    mut end_turn: EventReader<EndTurnEvent>,
+    mut turn_counter: ResMut<TurnCounter>,
+    mut health: Query<(&mut Character, &mut Health, &mut RecoveryCounter)>,
+) {
+    for _ in end_turn.read() {
+        turn_counter.0 += 1;
+
+        for (mut char, mut health, mut recovery) in &mut health {
+            let turns_needed = get_recovery_based_on_str(char.strength);
+            recovery.0 += 1;
+            if turns_needed <= recovery.0 {
+                recovery.0 = 0;
+                if let Some(rightmost) = health.hitpoints.pop_back() {
+                    health.hitpoints.push_front(HitPoint::default());
+                    if let Some((stat, val)) = rightmost.stat {
+                        char[stat] -= val;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -159,11 +209,14 @@ impl Plugin for SvarogTurnPlugin {
     fn build(&self, bevy: &mut App) {
         bevy.add_event::<TurnOrderProgressEvent>()
             .add_event::<StartTurnEvent>()
+            .init_resource::<TurnCounter>()
+            .add_event::<EndTurnEvent>()
             .insert_resource(TurnOrder::default())
             .add_systems(
                 Update,
                 (add_entity_to_turn_queue, turn_order_progress).chain(),
             )
+            .add_systems(Update, on_turn_end.run_if(on_event::<EndTurnEvent>()))
             .add_systems(Update, (debug_turn_order, debug_all_entities));
     }
 }

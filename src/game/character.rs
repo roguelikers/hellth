@@ -1,9 +1,9 @@
 use bevy::prelude::*;
-use imgui::ImColor32;
 use std::fmt::Debug;
-use std::ops::Index;
+use std::ops::{Index, IndexMut};
 
 use super::feel::Random;
+use super::magic::Magic;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum CharacterStat {
@@ -15,34 +15,10 @@ pub enum CharacterStat {
     AGI,
 }
 
-impl CharacterStat {
-    pub fn to_imgui_color(&self) -> ImColor32 {
-        match self {
-            CharacterStat::STR => ImColor32::from_rgb(221, 0, 120),
-            CharacterStat::ARC => ImColor32::from_rgb(0, 137, 78),
-            CharacterStat::INT => ImColor32::from_rgb(0, 132, 172),
-            CharacterStat::WIS => ImColor32::from_rgb(144, 60, 255),
-            CharacterStat::WIL => ImColor32::from_rgb(147, 122, 0),
-            CharacterStat::AGI => ImColor32::from_rgb(194, 82, 0),
-        }
-    }
-
-    pub fn to_color(&self) -> Color {
-        match self {
-            CharacterStat::STR => Color::rgb_u8(221, 0, 120),
-            CharacterStat::ARC => Color::rgb_u8(0, 137, 78),
-            CharacterStat::INT => Color::rgb_u8(0, 132, 172),
-            CharacterStat::WIS => Color::rgb_u8(144, 60, 255),
-            CharacterStat::WIL => Color::rgb_u8(147, 122, 0),
-            CharacterStat::AGI => Color::rgb_u8(194, 82, 0),
-        }
-    }
-}
-
 #[derive(Component)]
 pub struct Character {
     pub strength: i32,
-    pub arcane: i32,
+    pub arcana: i32,
     pub intelligence: i32,
     pub wisdom: i32,
     pub willpower: i32,
@@ -53,7 +29,7 @@ impl Default for Character {
     fn default() -> Self {
         Self {
             strength: 3,
-            arcane: 3,
+            arcana: 3,
             intelligence: 3,
             wisdom: 3,
             willpower: 3,
@@ -67,12 +43,25 @@ impl Debug for Character {
         f.write_fmt(format_args!(
             "STR[{}] ARC[{}] INT[{}] WIS[{}] WIL[{}] AGI[{}]",
             self.strength,
-            self.arcane,
+            self.arcana,
             self.intelligence,
             self.wisdom,
             self.willpower,
             self.agility
         ))
+    }
+}
+
+impl IndexMut<CharacterStat> for Character {
+    fn index_mut(&mut self, index: CharacterStat) -> &mut Self::Output {
+        match index {
+            CharacterStat::STR => &mut self.strength,
+            CharacterStat::ARC => &mut self.arcana,
+            CharacterStat::INT => &mut self.intelligence,
+            CharacterStat::WIS => &mut self.wisdom,
+            CharacterStat::WIL => &mut self.willpower,
+            CharacterStat::AGI => &mut self.agility,
+        }
     }
 }
 
@@ -82,7 +71,7 @@ impl Index<CharacterStat> for Character {
     fn index(&self, index: CharacterStat) -> &Self::Output {
         match index {
             CharacterStat::STR => &self.strength,
-            CharacterStat::ARC => &self.arcane,
+            CharacterStat::ARC => &self.arcana,
             CharacterStat::INT => &self.intelligence,
             CharacterStat::WIS => &self.wisdom,
             CharacterStat::WIL => &self.willpower,
@@ -109,7 +98,7 @@ impl Character {
 
         Self {
             strength: vals[0],
-            arcane: vals[1],
+            arcana: vals[1],
             intelligence: vals[2],
             wisdom: vals[3],
             willpower: vals[4],
@@ -153,12 +142,12 @@ impl Character {
         (strongest, max)
     }
 
-    pub fn get_strongest_stat_color(&self) -> Color {
+    pub fn get_strongest_stat_color(&self, magic: &ResMut<Magic>) -> Color {
         let (stat, val) = self.get_strongest_stat();
         if val == 3 {
             Color::WHITE
         } else {
-            stat.to_color()
+            magic[stat]
         }
     }
 

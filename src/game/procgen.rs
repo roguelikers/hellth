@@ -13,10 +13,12 @@ use doryen_fov::MapData;
 use crate::game::{
     ai::{AIAgent, PendingActions},
     character::{Character, CharacterStat},
+    feel::TweenSize,
     fov::Sight,
     grid::{WorldEntityBundle, WorldEntityKind},
-    health::Health,
+    health::{Health, RecoveryCounter},
     inventory::{CarriedItems, EquippedItems, ItemBuilder, ItemType},
+    magic::Magic,
     player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
@@ -28,6 +30,7 @@ use super::{
     feel::Random,
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
     grid::{Grid, Passability, WorldData},
+    history::HistoryLog,
     turns::{TurnOrder, TurnOrderProgressEvent},
     DebugFlag, GameStates,
 };
@@ -48,7 +51,6 @@ pub struct ClearLevel;
 #[allow(clippy::too_many_arguments)]
 pub fn generate_level(
     clear: Query<Entity, With<ClearLevel>>,
-
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
@@ -56,9 +58,15 @@ pub fn generate_level(
     mut sprites: Query<(&mut TextureAtlasSprite, &mut Passability)>,
     mut visibility: Query<&mut Visibility>,
     mut turn_order_progress: EventWriter<TurnOrderProgressEvent>,
+    mut log: ResMut<HistoryLog>,
+    mut magic: ResMut<Magic>,
     grid: Res<Grid>,
     radius: Res<MapRadius>,
 ) {
+    magic.reset(&mut rng);
+
+    log.clear();
+
     for c in &clear {
         commands.entity(c).despawn_recursive();
     }
@@ -338,7 +346,7 @@ pub fn generate_level(
         let mut builder = ItemBuilder::default()
             .with_name("Arcane Scroll")
             .with_image(rng.from(&[SCROLL1, SCROLL2]))
-            .with_type(ItemType::Spell);
+            .with_type(ItemType::Scroll);
 
         for _ in 0..rng.gen(1..3) {
             let mut power = 0;
@@ -349,13 +357,18 @@ pub fn generate_level(
             builder = builder.with_stat(rng.from(&stats), power);
         }
 
-        builder.create_at(places.pop().unwrap_or_default(), &mut commands, &grid)
+        builder.create_at(
+            places.pop().unwrap_or_default(),
+            &mut commands,
+            &grid,
+            &magic,
+        )
     }
 
     // add player
     let mut player = commands.spawn(WorldEntityBundle::new(
         &grid,
-        "Player",
+        "You",
         places.pop().unwrap_or_default(),
         EMO_MAGE.into(),
         true,
@@ -373,12 +386,28 @@ pub fn generate_level(
                 },
                 RenderLayers::layer(1),
             ));
+            f.spawn(((
+                SpriteSheetBundle {
+                    sprite: TextureAtlasSprite::new(SELECTION.into()),
+                    texture_atlas: grid.atlas.clone_weak(),
+                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0))
+                        .with_scale(Vec3::new(1.5, 1.5, 1.5)),
+                    ..Default::default()
+                },
+                RenderLayers::layer(1),
+                TweenSize {
+                    baseline: 1.5,
+                    max: 0.25,
+                },
+            ),));
         })
         .insert((
             Character {
-                agility: 6,
+                strength: 9,
+                agility: 3,
                 ..Default::default()
             },
+            RecoveryCounter::default(),
             CarriedItems::default(),
             EquippedItems::default(),
             PlayerMarker,
@@ -404,7 +433,7 @@ pub fn generate_level(
                 index + rng.gen(0..7) as usize,
                 true,
                 WorldEntityKind::NPC,
-                Some(char.get_strongest_stat_color()),
+                Some(char.get_strongest_stat_color(&magic)),
             ))
             .with_children(|f| {
                 f.spawn(((
@@ -425,6 +454,7 @@ pub fn generate_level(
                 EquippedItems::default(),
                 PendingActions::default(),
                 PickableBundle::default(),
+                RecoveryCounter::default(),
                 On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
                 Health::new(5),
             ));

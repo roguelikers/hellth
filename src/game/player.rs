@@ -1,43 +1,54 @@
 use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
 
-use crate::game::actions::a_move;
+use crate::game::actions::{a_drop, a_move};
 
 use super::{
-    actions::{a_pickup, a_wait, ActionEvent},
+    actions::{a_consume, a_pickup, a_wait, ActionEvent},
     ai::PendingActions,
     character::Character,
     grid::{WorldData, WorldEntity},
     health::Health,
-    inventory::{CarriedMarker, Item},
+    history::HistoryLog,
+    inventory::{
+        CarriedItems, CarriedMarker, CurrentlySelectedItem, EquippedItems, Item, ItemActions,
+    },
     procgen::PlayerMarker,
     turns::TurnOrder,
     GameStates,
 };
-
-#[derive(Debug, Default)]
-pub enum CastSpellState {
-    #[default]
-    ChooseSpell,
-    ChooseTarget,
-    CastingTime,
-    // back to idle
-}
-
-#[derive(Debug, Default)]
-pub enum ItemThrowState {
-    #[default]
-    ChooseItem,
-    ChooseTarget,
-    // back to idle
-}
 
 #[derive(Component, Default)]
 pub enum PlayerState {
     #[default]
     Idle,
     Dead,
-    Spell(CastSpellState),
-    Throw(ItemThrowState),
+    ItemSelected {
+        index: usize,
+    },
+}
+
+fn try_item_keys(keys: &Res<Input<KeyCode>>) -> Option<usize> {
+    if keys.just_pressed(KeyCode::Key1) {
+        Some(1)
+    } else if keys.just_pressed(KeyCode::Key2) {
+        Some(2)
+    } else if keys.just_pressed(KeyCode::Key3) {
+        Some(3)
+    } else if keys.just_pressed(KeyCode::Key4) {
+        Some(4)
+    } else if keys.just_pressed(KeyCode::Key5) {
+        Some(5)
+    } else if keys.just_pressed(KeyCode::Key6) {
+        Some(6)
+    } else if keys.just_pressed(KeyCode::Key7) {
+        Some(7)
+    } else if keys.just_pressed(KeyCode::Key8) {
+        Some(8)
+    } else if keys.just_pressed(KeyCode::Key9) {
+        Some(9)
+    } else {
+        None
+    }
 }
 
 fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
@@ -64,6 +75,7 @@ fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 #[allow(unused_assignments)]
 pub fn character_controls(
@@ -76,16 +88,21 @@ pub fn character_controls(
             &WorldEntity,
             &Health,
             &Character,
+            &mut CarriedItems,
+            &mut EquippedItems,
             &mut PendingActions,
             &mut PlayerState,
         ),
         With<PlayerMarker>,
     >,
-    item_query: Query<
+    free_item_query: Query<
         (Entity, &WorldEntity, &Item),
         (Without<PlayerMarker>, Without<CarriedMarker>),
     >,
+    carried_item_query: Query<&Item, With<CarriedMarker>>,
     mut actions: EventWriter<ActionEvent>,
+    mut history: ResMut<HistoryLog>,
+    mut currently_selected_item: ResMut<CurrentlySelectedItem>,
 ) {
     if let Some(e) = turn_order.peek() {
         if !player_query.contains(e) {
@@ -93,8 +110,16 @@ pub fn character_controls(
         }
     }
 
-    let Ok((entity, player_game_entity, health, character, mut pending_actions, mut player_state)) =
-        player_query.get_single_mut()
+    let Ok((
+        entity,
+        player_game_entity,
+        health,
+        character,
+        mut inventory,
+        mut equipped,
+        mut pending_actions,
+        mut player_state,
+    )) = player_query.get_single_mut()
     else {
         return;
     };
@@ -105,6 +130,10 @@ pub fn character_controls(
         taken_action = Some(ActionEvent(next_action));
     } else {
         match player_state.as_ref() {
+            PlayerState::Idle if currently_selected_item.0.is_some() => {
+                currently_selected_item.0 = None;
+            }
+
             PlayerState::Idle => {
                 if health.hitpoints.is_empty() {
                     taken_action = Some(ActionEvent(a_wait()));
@@ -125,7 +154,7 @@ pub fn character_controls(
                         taken_action = Some(ActionEvent(a_move(entity, direction)));
                     }
                 } else if keys.just_pressed(KeyCode::Comma) || keys.just_pressed(KeyCode::Space) {
-                    let items = item_query
+                    let items = free_item_query
                         .iter()
                         .filter(|(_e, w, _i)| w.position == player_game_entity.position)
                         .collect::<Vec<_>>();
@@ -137,11 +166,10 @@ pub fn character_controls(
                             items.iter().map(|i| i.0).collect::<Vec<_>>(),
                         )));
                     } else {
-                        println!("Nothing to pick up");
+                        history.add("Nothing to pick up");
                     }
-                } else if keys.just_pressed(KeyCode::T) {
-                    println!("Choose thy thaum");
-                    *player_state = PlayerState::Spell(CastSpellState::default());
+                } else if let Some(item_key) = try_item_keys(&keys) {
+                    *player_state = PlayerState::ItemSelected { index: item_key };
                 }
             }
 
@@ -150,35 +178,78 @@ pub fn character_controls(
                 turn_order.pushback(100);
             }
 
-            PlayerState::Spell(spell_state) => match spell_state {
-                CastSpellState::ChooseSpell => {
-                    if keys.just_pressed(KeyCode::Escape) {
-                        println!("Casting cancelled");
-                        *player_state = PlayerState::Idle;
-                    } else if keys.just_pressed(KeyCode::Return) {
-                        println!("ZAPPING FIREBALL");
-                        *player_state = PlayerState::Idle;
-                    }
+            PlayerState::ItemSelected { index } if *index > inventory.0.len() => {
+                *player_state = PlayerState::Idle;
+            }
+
+            PlayerState::ItemSelected { index } if currently_selected_item.0.is_none() => {
+                let Some(item_entity) = inventory.0.get(*index - 1) else {
+                    panic!("Item should be here, but is not found!");
+                };
+
+                currently_selected_item.0 = Some(*item_entity);
+            }
+
+            PlayerState::ItemSelected { index: _ } => {
+                if let Some(item_key) = try_item_keys(&keys) {
+                    currently_selected_item.0 = None;
+                    *player_state = PlayerState::ItemSelected { index: item_key };
+                    return;
                 }
 
-                CastSpellState::ChooseTarget => todo!(),
-                CastSpellState::CastingTime => todo!(),
-            },
+                if keys.just_pressed(KeyCode::Escape) {
+                    *player_state = PlayerState::Idle;
+                    return;
+                }
+                let item_entity = currently_selected_item.0.unwrap();
 
-            PlayerState::Throw(_) => todo!(),
+                let Ok(item) = carried_item_query.get(item_entity) else {
+                    return;
+                };
+
+                for action in item.available_actions() {
+                    let action_key = match action {
+                        ItemActions::Drop => Some(KeyCode::D),
+                        ItemActions::Equip if !equipped.0.contains(&item_entity) => {
+                            Some(KeyCode::E)
+                        }
+                        ItemActions::Remove if equipped.0.contains(&item_entity) => {
+                            Some(KeyCode::R)
+                        }
+                        ItemActions::Throw => Some(KeyCode::T),
+                        ItemActions::Consume => Some(KeyCode::C),
+                        ItemActions::Examine => Some(KeyCode::X),
+                        _ => None,
+                    };
+
+                    let Some(action_key) = action_key else {
+                        continue;
+                    };
+
+                    if keys.just_pressed(action_key) {
+                        match action {
+                            ItemActions::Drop => {
+                                taken_action = Some(ActionEvent(a_drop(entity, vec![item_entity])));
+                            }
+                            ItemActions::Equip => todo!(),
+                            ItemActions::Remove => todo!(),
+                            ItemActions::Throw => todo!(),
+                            ItemActions::Consume => {
+                                taken_action = Some(ActionEvent(a_consume(entity, item_entity)));
+                            }
+                            ItemActions::Examine => todo!(),
+                        }
+                        currently_selected_item.0 = None;
+                        *player_state = PlayerState::Idle;
+                        break;
+                    }
+                }
+            }
         }
     }
 
     if let Some(action) = taken_action {
         let cost = character.calculate_cost(action.0.get_affiliated_stat());
-        // let current_energy = turn_order
-        //     .order
-        //     .get_priority(&TurnOrderEntity { entity })
-        //     .unwrap();
-        // println!(
-        //     "{:?} ({} energy) decides to do {:?} for {} energy",
-        //     "Player", current_energy.0, action.0, cost
-        // );
         turn_order.pushback(cost);
         actions.send(action);
     }
