@@ -5,15 +5,16 @@ use bevy_mod_picking::{
     events::{Click, Pointer},
     prelude::ListenerInput,
 };
-use imgui::{DrawListMut, ImColor32};
+use imgui::{DrawListMut, ImColor32, StyleColor};
 
 use super::{
     character::{Character, CharacterStat},
-    grid::{Grid, WorldData, WorldEntity},
+    grid::{Grid, WorldData, WorldEntity, WorldEntityColor},
     health::Health,
+    history::History,
     inventory::{CarriedItems, EquippedItems, Item},
     procgen::PlayerMarker,
-    GameStates,
+    DebugFlag, GameStates,
 };
 
 #[derive(Event, Debug)]
@@ -30,14 +31,15 @@ pub struct DetailWindowMarker;
 
 pub fn on_show_details(
     mut show_details: EventReader<ShowEntityDetails>,
+    mut log: ResMut<History>,
     world_entities: Query<&WorldEntity>,
 ) {
     for detail in show_details.read() {
         if let Ok(world_entity) = world_entities.get(detail.0) {
-            println!(
+            log.0.push(format!(
                 "Show Detail for {:?} at {:?}: {}",
                 detail, world_entity.position, world_entity.name
-            );
+            ));
         }
     }
 }
@@ -72,7 +74,12 @@ impl Default for CharacterSettings {
 fn draw_health_settings(
     mut imgui: NonSendMut<ImguiContext>,
     mut char_settings: ResMut<CharacterSettings>,
+    debug: Res<DebugFlag>,
 ) {
+    if !debug.0 {
+        return;
+    }
+
     let ui = imgui.ui();
     let window = ui.window("Health Settings");
 
@@ -216,6 +223,7 @@ fn show_inventory(
         With<PlayerMarker>,
     >,
     items: Query<&Item>,
+    colors: Query<&WorldEntityColor>,
 ) {
     let ui = context.ui();
     let Ok((player, player_char, carried_items, equipped_items)) = player_entity.get_single()
@@ -226,7 +234,7 @@ fn show_inventory(
     ui.window("Inventory")
         .position_pivot([0.0, 0.0])
         .position([10.0, 90.0], imgui::Condition::Always)
-        .size([200.0, 500.0], imgui::Condition::Always)
+        .size([400.0, 500.0], imgui::Condition::Always)
         .resizable(false)
         .collapsible(false)
         .no_decoration()
@@ -244,7 +252,60 @@ fn show_inventory(
                     continue;
                 };
 
-                ui.text(format!("{}: {} ({:?})", id, item.name, item.item_type));
+                let equipped = equipped_items.0.iter().any(|e| e == item_id);
+                let eq = if equipped { "EQ" } else { "  " };
+
+                if colors.contains(*item_id) && player_char.arcane > 3 && player_char.wisdom > 3 {
+                    let color = colors.get(*item_id).unwrap().color;
+                    let c = ui.push_style_color(
+                        StyleColor::Text,
+                        [color.r(), color.g(), color.b(), color.a()],
+                    );
+                    ui.text(format!(
+                        "[{}] {}: {} ({:?})",
+                        eq, id, item.name, item.item_type
+                    ));
+                    c.pop();
+                } else {
+                    ui.text(format!(
+                        "[{}] {}: {} ({:?})",
+                        eq, id, item.name, item.item_type
+                    ));
+                }
+
+                let c = ui.push_style_color(
+                    StyleColor::Text,
+                    [207. / 255., 198. / 255., 184. / 255., 1.0],
+                );
+                ui.text_wrapped(format!("  {:?}", item));
+                c.pop();
+
+                ui.separator();
+            }
+        });
+}
+
+fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<History>) {
+    let ui = context.ui();
+
+    ui.window("History")
+        .position_pivot([0.0, 0.0])
+        .position([10.0, 600.0], imgui::Condition::Always)
+        .size([400.0, 500.0], imgui::Condition::Always)
+        .resizable(false)
+        .collapsible(false)
+        .no_decoration()
+        .bg_alpha(1.0)
+        .build(|| {
+            ui.text("History");
+            ui.separator();
+            for line in &log.0 {
+                let c = ui.push_style_color(
+                    StyleColor::Text,
+                    [207. / 255., 198. / 255., 184. / 255., 1.0],
+                );
+                ui.text_wrapped(line.to_string());
+                c.pop();
             }
         });
 }
@@ -330,6 +391,7 @@ impl Plugin for SvarogUIPlugin {
             (
                 show_status_for_world_entities,
                 show_inventory,
+                show_log,
                 draw_health_settings,
             )
                 .run_if(in_state(GameStates::Game)),

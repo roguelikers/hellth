@@ -30,6 +30,16 @@ impl AIBehaviour for StandardAIThinking {
             return vec![];
         };
 
+        let distance = (player_pos.distance_squared(enemy_pos) as f32).sqrt();
+
+        if enemy_hp.hitpoints.len() + 1 >= player_hp.hitpoints.len() && distance < 3.0 {
+            return vec![
+                a_melee(player, player_pos - enemy_pos),
+                a_melee(player, player_pos - enemy_pos),
+                a_melee(player, player_pos - enemy_pos),
+            ];
+        }
+
         let mut bravery = if enemy_hp.hitpoints.len() > player_hp.hitpoints.len() {
             2
         } else {
@@ -47,8 +57,6 @@ impl AIBehaviour for StandardAIThinking {
         if enemy_hp.hitpoints.len() < enemy_hp.size / 4 {
             bravery -= 2;
         }
-
-        let distance = (player_pos.distance_squared(enemy_pos) as f32).sqrt();
 
         if distance > 10.0 {
             return vec![a_random_walk(entity)];

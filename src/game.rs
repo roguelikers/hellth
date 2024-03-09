@@ -4,9 +4,9 @@ use bevy_trauma_shake::TraumaPlugin;
 
 use self::{
     actions::SvarogActionsPlugin, ai::SvarogAIPlugin, camera::SvarogCameraPlugin,
-    feel::SvarogFeelPlugin, grid::SvarogGridPlugin, loading::SvarogLoadingPlugin,
-    player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin, turns::SvarogTurnPlugin,
-    ui::SvarogUIPlugin, window::SvarogWindowPlugins,
+    feel::SvarogFeelPlugin, grid::SvarogGridPlugin, history::SvarogHistoryPlugin,
+    loading::SvarogLoadingPlugin, player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin,
+    turns::SvarogTurnPlugin, ui::SvarogUIPlugin, window::SvarogWindowPlugins,
 };
 
 pub mod actions;
@@ -17,6 +17,7 @@ pub mod feel;
 pub mod fov;
 pub mod grid;
 pub mod health;
+pub mod history;
 pub mod inventory;
 pub mod loading;
 pub mod player;
@@ -52,9 +53,14 @@ pub struct StartGameEvent;
 
 pub struct SvarogGamePlugin;
 
+#[derive(Resource, Default)]
+pub struct DebugFlag(pub bool);
+
 impl Plugin for SvarogGamePlugin {
     fn build(&self, bevy: &mut App) {
-        bevy.add_plugins(SvarogWindowPlugins)
+        bevy.insert_resource::<DebugFlag>(DebugFlag(false))
+            .add_plugins(SvarogWindowPlugins)
+            .add_plugins(SvarogHistoryPlugin)
             .add_plugins(SvarogLoadingPlugin)
             .add_plugins(SvarogActionsPlugin)
             .add_plugins(SvarogGridPlugin)

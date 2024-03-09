@@ -27,9 +27,9 @@ use crate::game::{
 use super::{
     feel::Random,
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
-    grid::{Grid, Passability, WorldData, WorldEntityMarker},
+    grid::{Grid, Passability, WorldData},
     turns::{TurnOrder, TurnOrderProgressEvent},
-    GameStates,
+    DebugFlag, GameStates,
 };
 
 #[derive(Event)]
@@ -41,10 +41,14 @@ pub struct PlayerMarker;
 #[derive(Resource)]
 pub struct MapRadius(pub i32);
 
+#[derive(Component)]
+pub struct ClearLevel;
+
 #[allow(clippy::identity_op)]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_level(
-    game_entities: Query<Entity, With<WorldEntityMarker>>,
+    clear: Query<Entity, With<ClearLevel>>,
+
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
@@ -55,6 +59,10 @@ pub fn generate_level(
     grid: Res<Grid>,
     radius: Res<MapRadius>,
 ) {
+    for c in &clear {
+        commands.entity(c).despawn_recursive();
+    }
+
     fn clear_grid(
         grid: &Res<Grid>,
         rng: &mut ResMut<Random>,
@@ -63,6 +71,11 @@ pub fn generate_level(
         visibility: &mut Query<&mut Visibility>,
         sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
     ) -> HashSet<IVec2> {
+        grid.entities.iter().for_each(|(pos, _)| {
+            map.blocking.remove(pos);
+            map.solid.remove(pos);
+        });
+
         let symbols = Tiles::default()
             .add_more(EMPTY_FLOOR, 4)
             .add_bunch(&[
@@ -281,10 +294,6 @@ pub fn generate_level(
 
     turn_order.clear();
 
-    for entity in &game_entities {
-        commands.entity(entity).despawn_recursive();
-    }
-
     let mut okay = clear_grid(
         &grid,
         &mut rng,
@@ -439,9 +448,17 @@ pub fn debug_radius(mut map_radius: ResMut<MapRadius>, keys: Res<Input<KeyCode>>
     map_radius.0 = radius;
 }
 
-pub fn debug_procgen(mut procgen_events: EventWriter<ProcGenEvent>, keys: Res<Input<KeyCode>>) {
+pub fn debug_procgen(
+    mut procgen_events: EventWriter<ProcGenEvent>,
+    keys: Res<Input<KeyCode>>,
+    mut debug: ResMut<DebugFlag>,
+) {
     if keys.just_pressed(KeyCode::F5) {
         procgen_events.send(ProcGenEvent);
+    }
+
+    if keys.just_pressed(KeyCode::F12) {
+        debug.0 = !debug.0;
     }
 }
 

@@ -1,7 +1,7 @@
 use bevy::{
     app::{Plugin, Startup},
     render::texture::ImagePlugin,
-    window::{PrimaryWindow, Window, WindowPlugin},
+    window::{PrimaryWindow, Window, WindowMode, WindowPlugin},
     winit::WinitWindows,
     DefaultPlugins,
 };
@@ -139,6 +139,7 @@ impl Plugin for SvarogWindowPlugins {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "HELLTH".into(),
+                        mode: WindowMode::BorderlessFullscreen,
                         ..Default::default()
                     }),
                     ..Default::default()

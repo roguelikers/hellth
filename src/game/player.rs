@@ -99,7 +99,6 @@ pub fn character_controls(
         return;
     };
 
-    //println!("{:?} {:?}", mouse, player_game_entity.position);
     let mut taken_action: Option<ActionEvent> = None;
 
     if let Some(next_action) = pending_actions.0.pop_front() {
@@ -132,12 +131,7 @@ pub fn character_controls(
                         .collect::<Vec<_>>();
 
                     #[allow(clippy::comparison_chain)]
-                    if items.len() > 1 {
-                        println!("Choose what to pick up: ");
-                        for (n, item) in items.iter().enumerate() {
-                            println!("  {}: {}", n + 1, item.2.name);
-                        }
-                    } else if items.len() == 1 {
+                    if !items.is_empty() {
                         taken_action = Some(ActionEvent(a_pickup(
                             entity,
                             items.iter().map(|i| i.0).collect::<Vec<_>>(),

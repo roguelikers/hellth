@@ -13,7 +13,7 @@ use bevy_trauma_shake::{Shake, ShakeSettings};
 use super::{
     grid::{Grid, WorldEntity},
     procgen::{PlayerMarker, ProcGenEvent},
-    GameStates,
+    DebugFlag, GameStates,
 };
 
 #[derive(Component)]
@@ -100,7 +100,12 @@ fn debug_camera(
     keys: Res<Input<KeyCode>>,
     mut context: NonSendMut<ImguiContext>,
     mut camera_settings: ResMut<CameraSettings>,
+    debug: Res<DebugFlag>,
 ) {
+    if !debug.0 {
+        return;
+    }
+
     for mut projection in &mut camera_query {
         if let ScalingMode::WindowSize(size) = projection.scaling_mode {
             let mut new_size = size;

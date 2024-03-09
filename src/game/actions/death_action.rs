@@ -55,7 +55,18 @@ impl Action for DeathAction {
             }
         };
 
-        world.despawn(self.entity);
+        {
+            let mut to_remove = vec![self.entity];
+            if let Some(ch) = world.get::<Children>(self.entity) {
+                for c in ch.iter() {
+                    to_remove.push(*c);
+                }
+            }
+
+            for rem in to_remove {
+                world.despawn(rem);
+            }
+        }
         result
     }
 }

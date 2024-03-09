@@ -31,12 +31,7 @@ impl Debug for Item {
             desc.push(format!("{}{} {:?}", sign, val.abs(), stat));
         }
 
-        f.write_fmt(format_args!(
-            "{} -- {:?} [{}]",
-            self.name,
-            self.item_type,
-            desc.join(", ")
-        ))
+        f.write_fmt(format_args!("[{}]", desc.join(", ")))
     }
 }
 

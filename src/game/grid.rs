@@ -31,6 +31,7 @@ use bevy::{
 
 #[cfg(feature = "debug_mode")]
 use super::feel::Random;
+use super::procgen::ClearLevel;
 
 #[derive(Component)]
 pub struct WorldEntityMarker;
@@ -55,6 +56,7 @@ pub struct WorldEntityBundle {
     pub layer: RenderLayers,
     pub fov: FOV,
     pub color: WorldEntityColor,
+    pub clear: ClearLevel,
 }
 
 #[derive(Component)]
@@ -91,6 +93,7 @@ impl WorldEntityBundle {
             WorldEntityKind::NPC => 5.0,
             WorldEntityKind::Item => 1.0,
         };
+
         WorldEntityBundle {
             entity: WorldEntity {
                 name: name.to_string(),
@@ -111,6 +114,7 @@ impl WorldEntityBundle {
             color: WorldEntityColor {
                 color: color.unwrap_or(Color::WHITE),
             },
+            clear: ClearLevel,
         }
     }
 
@@ -155,6 +159,7 @@ impl WorldEntityBundle {
             color: WorldEntityColor {
                 color: color.unwrap_or(Color::WHITE),
             },
+            clear: ClearLevel,
         }
     }
 }

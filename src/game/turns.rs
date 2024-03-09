@@ -5,6 +5,7 @@ use priority_queue::PriorityQueue;
 use super::{
     ai::{AIAgent, PendingActions},
     grid::WorldEntity,
+    DebugFlag,
 };
 
 #[derive(Component)]
@@ -91,7 +92,12 @@ fn debug_turn_order(
     mut context: NonSendMut<ImguiContext>,
     turn_order: Res<TurnOrder>,
     living: Query<(&WorldEntity, Option<&AIAgent>, Option<&PendingActions>)>,
+    debug: Res<DebugFlag>,
 ) {
+    if !debug.0 {
+        return;
+    }
+
     let ui = context.ui();
     let window = ui.window("Turn Order");
 
@@ -127,7 +133,12 @@ fn debug_turn_order(
 fn debug_all_entities(
     mut context: NonSendMut<ImguiContext>,
     mut entities: Query<(&WorldEntity, &mut Transform)>,
+    debug: Res<DebugFlag>,
 ) {
+    if !debug.0 {
+        return;
+    }
+
     let ui = context.ui();
     let window = ui.window("All Entities");
 

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use doryen_fov::{FovAlgorithm, FovRecursiveShadowCasting};
 
 use super::{
+    character::Character,
     grid::{Grid, WorldData, WorldEntity, WorldEntityColor, FOV},
     health::Health,
     inventory::CarriedMarker,
@@ -27,7 +28,7 @@ pub fn on_new_fov_added(
 #[allow(clippy::collapsible_else_if)]
 pub fn recalculate_fov(
     mut recalc_event: EventReader<RecalculateFOVEvent>,
-    player_entity: Query<(&WorldEntity, &Health, &Sight), With<PlayerMarker>>,
+    player_entity: Query<(&WorldEntity, &Health, &Sight, &Character), With<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     map: Option<ResMut<WorldData>>,
     mut non_players: Query<
@@ -53,7 +54,7 @@ pub fn recalculate_fov(
         return;
     };
 
-    let Ok((player_in_world, health, sight)) = &player_entity.get_single() else {
+    let Ok((player_in_world, health, sight, character)) = &player_entity.get_single() else {
         return;
     };
 
@@ -135,7 +136,11 @@ pub fn recalculate_fov(
 
         if map.data.is_in_fov(x, y) {
             *vis = Visibility::Visible;
-            sprite.color = color.color;
+            if character.wisdom > 3 && character.arcane > 3 {
+                sprite.color = color.color;
+            } else {
+                sprite.color = Color::WHITE;
+            }
             transform.translation = grid.get_tile_position(world_entity.position).translation;
         } else {
             *vis = Visibility::Hidden;
