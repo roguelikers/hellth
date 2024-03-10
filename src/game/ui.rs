@@ -14,6 +14,7 @@ use super::{
     history::HistoryLog,
     inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
     magic::Magic,
+    player::PlayerState,
     procgen::PlayerMarker,
     DebugFlag, GameStates,
 };
@@ -368,6 +369,39 @@ fn show_inventory(
         });
 }
 
+fn show_throw_tip(mut context: NonSendMut<ImguiContext>, player_state: Query<&PlayerState>) {
+    let Ok(player_state) = player_state.get_single() else {
+        return;
+    };
+
+    let ui = context.ui();
+
+    if matches!(
+        player_state,
+        PlayerState::PreparingToThrow {
+            entity: _,
+            item_entity: _
+        }
+    ) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Tip")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([400.0, 20.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let text = "MOVE to target, ESCAPE to cancel, SPACE to commit";
+                let [w, _] = ui.calc_text_size(text);
+                ui.set_cursor_pos([(400.0 - w) * 0.5, 10.0]);
+                ui.text(text);
+            });
+    }
+}
+
 fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
     let ui = context.ui();
 
@@ -478,6 +512,7 @@ impl Plugin for SvarogUIPlugin {
                 show_status_for_world_entities,
                 show_inventory,
                 show_log,
+                show_throw_tip,
                 draw_health_settings,
             )
                 .run_if(in_state(GameStates::Game)),

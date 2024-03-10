@@ -53,6 +53,9 @@ impl Random {
 }
 
 #[derive(Component)]
+pub struct Targeting(pub IVec2);
+
+#[derive(Component)]
 pub struct TweenSize {
     pub baseline: f32,
     pub max: f32,

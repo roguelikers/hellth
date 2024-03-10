@@ -36,7 +36,12 @@ impl Item {
         match self.item_type {
             ItemType::Unknown => vec![ItemActions::Drop],
             ItemType::Artifact => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
-            ItemType::Weapon => vec![ItemActions::Drop, ItemActions::Equip, ItemActions::Unequip],
+            ItemType::Weapon => vec![
+                ItemActions::Drop,
+                ItemActions::Throw,
+                ItemActions::Equip,
+                ItemActions::Unequip,
+            ],
             ItemType::Armor => vec![ItemActions::Drop, ItemActions::Equip, ItemActions::Unequip],
             ItemType::Potion => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
             ItemType::Scroll => vec![ItemActions::Drop, ItemActions::Examine],

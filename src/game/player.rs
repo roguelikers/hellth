@@ -1,18 +1,24 @@
-use bevy::{prelude::*, render::camera::CameraUpdateSystem, transform::TransformSystem};
+use bevy::{
+    prelude::*,
+    render::{camera::CameraUpdateSystem, view::RenderLayers},
+    transform::TransformSystem,
+};
 
 use crate::game::actions::{a_drop, a_move};
 
 use super::{
-    actions::{a_consume, a_equip, a_pickup, a_unequip, a_wait, ActionEvent},
+    actions::{a_consume, a_equip, a_pickup, a_throw, a_unequip, a_wait, ActionEvent},
     ai::PendingActions,
     character::Character,
-    grid::{WorldData, WorldEntity},
+    feel::{Targeting, TweenSize},
+    grid::{Grid, WorldData, WorldEntity, WorldEntityBundle},
     health::Health,
     history::HistoryLog,
     inventory::{
         CarriedItems, CarriedMarker, CurrentlySelectedItem, EquippedItems, Item, ItemActions,
     },
     procgen::PlayerMarker,
+    sprites::TARGET,
     turns::TurnOrder,
     GameStates,
 };
@@ -24,6 +30,10 @@ pub enum PlayerState {
     Dead,
     ItemSelected {
         index: usize,
+    },
+    PreparingToThrow {
+        entity: Entity,
+        item_entity: Entity,
     },
 }
 
@@ -80,8 +90,11 @@ fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
 #[allow(unused_assignments)]
 pub fn character_controls(
     mut turn_order: ResMut<TurnOrder>,
+    grid: Res<Grid>,
     map: Res<WorldData>,
     keys: Res<Input<KeyCode>>,
+    mut commands: Commands,
+    mut targeting: Query<(Entity, &mut Transform, &mut Targeting), Without<PlayerMarker>>,
     mut player_query: Query<
         (
             Entity,
@@ -237,10 +250,35 @@ pub fn character_controls(
                             ItemActions::Unequip => {
                                 taken_action = Some(ActionEvent(a_unequip(entity, item_entity)));
                             }
-                            ItemActions::Throw => todo!(),
+                            ItemActions::Throw => {
+                                commands.spawn((
+                                    SpriteSheetBundle {
+                                        sprite: TextureAtlasSprite::new(TARGET.into()),
+                                        texture_atlas: grid.atlas.clone_weak(),
+                                        transform: grid
+                                            .get_tile_position(player_game_entity.position)
+                                            .with_scale(Vec3::new(1.25, 1.25, 1.25)),
+                                        ..Default::default()
+                                    },
+                                    RenderLayers::layer(1),
+                                    TweenSize {
+                                        baseline: 1.25,
+                                        max: 0.25,
+                                    },
+                                    Targeting(player_game_entity.position),
+                                ));
+
+                                *player_state = PlayerState::PreparingToThrow {
+                                    entity,
+                                    item_entity,
+                                };
+                                break;
+                            }
+
                             ItemActions::Consume => {
                                 taken_action = Some(ActionEvent(a_consume(entity, item_entity)));
                             }
+
                             ItemActions::Examine => todo!(),
                         }
                         currently_selected_item.0 = None;
@@ -248,6 +286,28 @@ pub fn character_controls(
                         break;
                     }
                 }
+            }
+
+            PlayerState::PreparingToThrow {
+                entity,
+                item_entity,
+            } => {
+                if let Some(dir) = try_direction_keys(&keys) {
+                    let (_, mut target_transform, mut targeting) = targeting.single_mut();
+                    targeting.0 += dir;
+                    *target_transform = grid.get_tile_position(targeting.0);
+                } else if keys.just_pressed(KeyCode::Escape) {
+                    let (target_entity, _, _) = targeting.single();
+                    commands.entity(target_entity).despawn_recursive();
+                    *player_state = PlayerState::Idle;
+                    return;
+                } else if keys.just_pressed(KeyCode::Space) {
+                    let (target_entity, _, targeting) = targeting.single();
+                    taken_action = Some(ActionEvent(a_throw(*entity, *item_entity, targeting.0)));
+                    commands.entity(target_entity).despawn_recursive();
+                    *player_state = PlayerState::Idle;
+                }
+                //
             }
         }
     }

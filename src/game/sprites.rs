@@ -42,6 +42,7 @@ pub const HP_EMPTY: Tile = Tile(14, 39);
 pub const HP_FULL: Tile = Tile(15, 39);
 
 pub const SELECTION: Tile = Tile(12, 37);
+pub const TARGET: Tile = Tile(14, 25);
 
 pub const STAFF1: Tile = Tile(4, 32);
 pub const STAFF2: Tile = Tile(4, 33);

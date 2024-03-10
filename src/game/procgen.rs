@@ -13,7 +13,7 @@ use doryen_fov::MapData;
 use crate::game::{
     ai::{AIAgent, PendingActions},
     character::{Character, CharacterStat},
-    feel::TweenSize,
+    feel::{Targeting, TweenSize},
     fov::Sight,
     grid::{WorldEntityBundle, WorldEntityKind},
     health::{Health, RecoveryCounter},

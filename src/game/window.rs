@@ -139,7 +139,7 @@ impl Plugin for SvarogWindowPlugins {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "HELLTH".into(),
-                        mode: WindowMode::BorderlessFullscreen,
+                        //mode: WindowMode::BorderlessFullscreen,
                         ..Default::default()
                     }),
                     ..Default::default()

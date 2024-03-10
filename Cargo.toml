@@ -21,7 +21,7 @@ bevy_rand = { version = "0.4", features = ["rand_chacha", "wyrand"] }
 bevy_mod_imgui = "0.2.1"
 bevy_mouse_tracking_plugin = "0.7.0"
 bevy_mod_picking = { version = "0.17", default-features = false, features = [ "backend_sprite", "selection", "highlight"] }
-
+bresenham = "0.1.1"
 doryen-fov="*"
 priority-queue = "2.0.2"
 pathfinding = "4.9.1"

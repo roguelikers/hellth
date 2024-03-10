@@ -61,7 +61,6 @@ impl Action for DropAction {
             if let Some(carried_item) = person_carrying.0.iter().position(|i| i == item_entity) {
                 person_carrying.0.remove(carried_item);
                 *vis = Visibility::Visible;
-                log.add(&format!("{} dropped {}.", person_entity.name, item.name));
                 mark_carried.push(*item_entity);
             }
         }
