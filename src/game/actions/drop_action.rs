@@ -5,6 +5,7 @@ use crate::game::{
     grid::{Grid, WorldEntity},
     history::HistoryLog,
     inventory::{CarriedItems, CarriedMarker, Item},
+    procgen::ClearLevel,
     turns::TurnTaker,
 };
 
@@ -67,6 +68,7 @@ impl Action for DropAction {
 
         for marked in mark_carried {
             world.entity_mut(marked).remove::<CarriedMarker>();
+            world.entity_mut(marked).insert(ClearLevel);
         }
 
         vec![]

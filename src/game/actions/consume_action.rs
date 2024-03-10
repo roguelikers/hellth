@@ -7,6 +7,7 @@ use crate::game::{
     health::Health,
     history::HistoryLog,
     inventory::Item,
+    magic::Focus,
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -30,7 +31,7 @@ impl Action for ConsumeAction {
         let mut read_system_state = SystemState::<(
             ResMut<HistoryLog>,
             Query<&Item>,
-            Query<(&mut Character, &WorldEntity, &mut Health)>,
+            Query<(&mut Character, &WorldEntity, &mut Health, &mut Focus)>,
         )>::new(world);
 
         let (mut log, item_query, mut world_entity_query) = read_system_state.get_mut(world);
@@ -39,17 +40,50 @@ impl Action for ConsumeAction {
             return vec![];
         };
 
-        if let Ok((mut character, world_entity, mut health)) = world_entity_query.get_mut(self.who)
+        if let Ok((mut character, world_entity, mut health, mut focus)) =
+            world_entity_query.get_mut(self.who)
         {
-            log.add(&format!("{} consumed {}.", world_entity.name, item.name));
+            let mut message = vec![format!("{} consumed {}.", world_entity.name, item.name)];
 
+            if focus.0 > 0 && world_entity.is_player {
+                message
+                    .push("You are focused, enchanting deeper reaches of your soul.".to_string());
+            }
+
+            let hp_total = (health.hitpoints.len() - 1) as isize;
+            let mut already_missed = false;
             for (index, effect_val) in item.equip_stat_changes.iter().enumerate() {
-                if let Some(hp) = health.hitpoints.get_mut(index) {
+                let pos = hp_total - index as isize - focus.0 as isize;
+
+                if pos < 0 && !already_missed {
+                    message.push("Part of the spell missed.".to_string());
+                    already_missed = true;
+                    continue;
+                }
+
+                if let Some(hp) = health.hitpoints.get_mut(pos as usize) {
                     for (effect, val) in hp.enchant(*effect_val) {
                         character[effect] += val;
+
+                        {
+                            let e = character.counters.entry(effect).or_insert(0);
+                            *e += 1;
+                        }
+
+                        message.push(format!(
+                            "{} {} {} by {}.",
+                            world_entity.name,
+                            if val > 0 { "raise" } else { "lower" },
+                            format!("{:?}", effect).to_uppercase(),
+                            val.abs()
+                        ));
                     }
                 }
             }
+
+            focus.0 = 0;
+
+            log.add(&message.join(" "));
         }
 
         vec![a_destroy(self.what)]

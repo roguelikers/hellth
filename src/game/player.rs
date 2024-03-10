@@ -11,7 +11,7 @@ use super::{
     ai::PendingActions,
     character::Character,
     feel::{Targeting, TweenSize},
-    grid::{Grid, WorldData, WorldEntity, WorldEntityBundle},
+    grid::{Grid, WorldData, WorldEntity},
     health::Health,
     history::HistoryLog,
     inventory::{
@@ -25,7 +25,6 @@ use super::{
 
 #[derive(Component, Default)]
 pub enum PlayerState {
-    #[default]
     Idle,
     Dead,
     ItemSelected {
@@ -35,6 +34,8 @@ pub enum PlayerState {
         entity: Entity,
         item_entity: Entity,
     },
+    #[default]
+    Help,
 }
 
 fn try_item_keys(keys: &Res<Input<KeyCode>>) -> Option<usize> {
@@ -183,6 +184,8 @@ pub fn character_controls(
                     }
                 } else if let Some(item_key) = try_item_keys(&keys) {
                     *player_state = PlayerState::ItemSelected { index: item_key };
+                } else if keys.just_pressed(KeyCode::H) {
+                    *player_state = PlayerState::Help;
                 }
             }
 
@@ -308,6 +311,12 @@ pub fn character_controls(
                     *player_state = PlayerState::Idle;
                 }
                 //
+            }
+
+            PlayerState::Help => {
+                if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Escape) {
+                    *player_state = PlayerState::Idle;
+                }
             }
         }
     }

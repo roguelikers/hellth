@@ -222,7 +222,7 @@ fn setup_cameras(mut commands: Commands, mut procgen_events: EventWriter<ProcGen
         .add(InitMouseTracking)
         .add(InitWorldTracking);
 
-    procgen_events.send(ProcGenEvent);
+    procgen_events.send(ProcGenEvent::RestartWorld);
 }
 
 pub struct SvarogCameraPlugin;

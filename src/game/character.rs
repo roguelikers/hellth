@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::utils::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::ops::{Index, IndexMut};
 
@@ -15,7 +16,7 @@ pub enum CharacterStat {
     AGI,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct Character {
     pub strength: i32,
     pub arcana: i32,
@@ -23,6 +24,8 @@ pub struct Character {
     pub wisdom: i32,
     pub willpower: i32,
     pub agility: i32,
+    pub learned: HashSet<CharacterStat>,
+    pub counters: HashMap<CharacterStat, u32>,
 }
 
 impl Default for Character {
@@ -34,6 +37,8 @@ impl Default for Character {
             wisdom: 3,
             willpower: 3,
             agility: 3,
+            learned: HashSet::new(),
+            counters: HashMap::new(),
         }
     }
 }
@@ -103,6 +108,8 @@ impl Character {
             wisdom: vals[3],
             willpower: vals[4],
             agility: vals[5],
+            learned: HashSet::new(),
+            counters: HashMap::new(),
         }
     }
 

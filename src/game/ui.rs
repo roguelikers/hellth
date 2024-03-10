@@ -5,7 +5,7 @@ use bevy_mod_picking::{
     events::{Click, Pointer},
     prelude::ListenerInput,
 };
-use imgui::{DrawListMut, ImColor32, StyleColor};
+use imgui::{DrawListMut, ImColor32, StyleColor, Ui};
 
 use super::{
     character::{Character, CharacterStat},
@@ -119,13 +119,25 @@ fn draw_health_settings(
         });
 }
 
-fn draw_stats(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: &Character) {
+fn draw_player_stats(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: &mut Character) {
     let mut p = Vec2::new(p[0], p[1]);
 
-    fn draw_stat(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: CharacterStat, val: i32) {
+    fn draw_stat(
+        draw: &DrawListMut,
+        magic: &Res<Magic>,
+        p: Vec2,
+        stat: CharacterStat,
+        val: i32,
+        learned: bool,
+    ) {
         let c = {
-            let c = magic[char];
-            ImColor32::from_rgb_f32s(c.r(), c.g(), c.b())
+            let c = magic[stat];
+            if learned {
+                ImColor32::from_rgb_f32s(c.r(), c.g(), c.b())
+            } else {
+                let g = (c.r() + c.g() + c.b()) / 3.0;
+                ImColor32::from_rgb_f32s(g, g, g)
+            }
         };
 
         let p1 = [p.x, p.y];
@@ -142,7 +154,7 @@ fn draw_stats(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: &Character)
         draw.add_rect(p1, p2, c).filled(true).build();
         draw.add_rect(o1, o2, w).filled(false).build();
         draw.add_rect(o1, o2, w).filled(false).build();
-        draw.add_text(t1, w, format!("{:?}", char));
+        draw.add_text(t1, w, format!("{:?}", stat));
         draw.add_text(t2, w, format!("{}", val));
     }
 
@@ -155,7 +167,87 @@ fn draw_stats(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: &Character)
         CharacterStat::AGI,
     ] {
         let val = char[stat];
-        draw_stat(draw, magic, p, stat, val);
+
+        let learned = if char.learned.contains(&stat) {
+            true
+        } else {
+            let count = {
+                if char.counters.contains_key(&stat) {
+                    *char.counters.get(&stat).unwrap()
+                } else {
+                    0
+                }
+            };
+
+            let mut limit = 3;
+            if char[CharacterStat::WIS] < 3 {
+                limit = 3 + (3 - char[CharacterStat::WIS]);
+            }
+
+            let learned = count > limit as u32;
+            if learned {
+                char.learned.insert(stat);
+            }
+            learned
+        };
+
+        draw_stat(draw, magic, p, stat, val, learned);
+        p.x += 50.0;
+    }
+}
+
+fn draw_npc_stats(
+    draw: &DrawListMut,
+    magic: &Res<Magic>,
+    p: Vec2,
+    char: &Character,
+    player: &Character,
+) {
+    let mut p = Vec2::new(p[0], p[1]);
+
+    fn draw_stat(
+        draw: &DrawListMut,
+        magic: &Res<Magic>,
+        p: Vec2,
+        stat: CharacterStat,
+        val: i32,
+        player: &Character,
+    ) {
+        if player.learned.contains(&stat) {
+            let c = {
+                let c = magic[stat];
+                ImColor32::from_rgb_f32s(c.r(), c.g(), c.b())
+            };
+
+            let p1 = [p.x, p.y];
+            let p2 = [p.x + 4., p.y + 20.0];
+
+            let o1 = [p.x - 2.0, p.y - 2.0];
+            let o2 = [p.x + 6.0, p.y + 22.0];
+
+            let t1 = [p.x + 10.0, p.y - 2.0];
+            let t2 = [p.x + 10.0, p.y + 10.0];
+
+            let w = ImColor32::from_rgb(207, 198, 184);
+            draw.add_rect(p1, p2, c).filled(true).build();
+            draw.add_rect(p1, p2, c).filled(true).build();
+            draw.add_rect(o1, o2, w).filled(false).build();
+            draw.add_rect(o1, o2, w).filled(false).build();
+            draw.add_text(t1, w, format!("{:?}", stat));
+            draw.add_text(t2, w, format!("{}", val));
+        }
+    }
+
+    for stat in [
+        CharacterStat::STR,
+        CharacterStat::ARC,
+        CharacterStat::INT,
+        CharacterStat::WIS,
+        CharacterStat::WIL,
+        CharacterStat::AGI,
+    ] {
+        let val = char[stat];
+        draw_stat(draw, magic, p, stat, val, player);
         p.x += 50.0;
     }
 }
@@ -402,6 +494,54 @@ fn show_throw_tip(mut context: NonSendMut<ImguiContext>, player_state: Query<&Pl
     }
 }
 
+fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Query<&PlayerState>) {
+    let Ok(player_state) = player_state.get_single() else {
+        return;
+    };
+
+    let ui = context.ui();
+
+    if matches!(player_state, PlayerState::Help) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Tip")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 500.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("HELP");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("HELP");
+
+                ui.text("Hark thee!");
+                ui.spacing();
+                let mut message = vec!["You are the latest in a long line of acolytes sent to venture into the Ruins of the World in the hopes of slaying the Healer.".to_string()];                
+                message.push("Let not yourself be fooled by that name -- this person brought ruin; he remade the world by collapsing the Spiritual Divide.".to_string());
+                message.push("Going down doesn't require only time, but sacrifice...".to_string());
+                ui.text_wrapped(message.join(" "));
+                ui.text_wrapped("Staircases going down don't exist. Consume. Grow. Sacrifice. Find a way.");
+                ui.separator();
+                ui.text_wrapped("Help (this screen): H");
+                ui.text_wrapped("Movement: ASDW + QEZC (diagonal)");
+                ui.text_wrapped("Wait Turn: X");
+                ui.text_wrapped("Cancel: Escape");
+                ui.text_wrapped("Pickup: Space");
+                ui.text_wrapped("Pray: P");
+                ui.text_wrapped("Items: 1-9 to start interaction");
+                ui.separator();
+                let mut message = vec!["This challenge will see you use and consume artifacts that inflict upon your health strange glyphs to affect your state.".to_string()];
+                message.push("It shall change how you perceive things. It shall make you wonder about your choices. Remember the shape of your soul and track it carefully.".to_string());
+                message.push("Remember that in this place NINE is the strength with which devotion hits when you pray. Be wary of what you ask for. Remember it in your BONES.".to_string());
+                ui.text_wrapped(message.join(" "));
+                ui.spacing();
+            });
+    }
+}
+
 fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
     let ui = context.ui();
 
@@ -428,7 +568,7 @@ fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
 }
 
 fn show_status_for_world_entities(
-    player_entity: Query<(&WorldEntity, &Character, &Health), With<PlayerMarker>>,
+    mut player_entity: Query<(&WorldEntity, &mut Character, &Health), With<PlayerMarker>>,
     world_entities: Query<(&WorldEntity, &Character, &Health), Without<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     world: Res<WorldData>,
@@ -444,7 +584,7 @@ fn show_status_for_world_entities(
 
     let [width, _height] = ui.io().display_size;
 
-    let Ok((player, player_char, player_health)) = player_entity.get_single() else {
+    let Ok((player, mut player_char, player_health)) = player_entity.get_single_mut() else {
         return;
     };
 
@@ -463,11 +603,11 @@ fn show_status_for_world_entities(
             let p: Vec2 = ui.window_pos().into();
 
             draw_hp_bar(&draw, p, player_health, &magic, &health_settings);
-            draw_stats(
+            draw_player_stats(
                 &draw,
                 &magic,
                 p + Vec2::new(health_settings.stat_left, health_settings.stat_top),
-                player_char,
+                &mut player_char,
             );
         });
 
@@ -488,12 +628,15 @@ fn show_status_for_world_entities(
                     let p: Vec2 = ui.window_pos().into();
 
                     draw_hp_bar(&draw, p, other_health, &magic, &health_settings);
-                    draw_stats(
-                        &draw,
-                        &magic,
-                        p + Vec2::new(health_settings.stat_left, health_settings.stat_top),
-                        other_char,
-                    );
+                    if player_char.wisdom > 5 && player_char.arcana > 5 {
+                        draw_npc_stats(
+                            &draw,
+                            &magic,
+                            p + Vec2::new(health_settings.stat_left, health_settings.stat_top),
+                            other_char,
+                            player_char.as_ref(),
+                        );
+                    }
                 });
 
             window_y += 78.0;
@@ -512,6 +655,7 @@ impl Plugin for SvarogUIPlugin {
                 show_status_for_world_entities,
                 show_inventory,
                 show_log,
+                show_help,
                 show_throw_tip,
                 draw_health_settings,
             )

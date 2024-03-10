@@ -13,12 +13,12 @@ use doryen_fov::MapData;
 use crate::game::{
     ai::{AIAgent, PendingActions},
     character::{Character, CharacterStat},
-    feel::{Targeting, TweenSize},
+    feel::TweenSize,
     fov::Sight,
     grid::{WorldEntityBundle, WorldEntityKind},
     health::{Health, RecoveryCounter},
     inventory::{CarriedItems, EquippedItems, ItemBuilder, ItemType},
-    magic::Magic,
+    magic::{Focus, Magic},
     player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
@@ -29,14 +29,17 @@ use crate::game::{
 use super::{
     feel::Random,
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
-    grid::{Grid, Passability, WorldData},
+    grid::{Grid, Passability, WorldData, WorldEntity},
     history::HistoryLog,
     turns::{TurnOrder, TurnOrderProgressEvent},
     DebugFlag, GameStates,
 };
 
-#[derive(Event)]
-pub struct ProcGenEvent;
+#[derive(Event, PartialEq, Eq)]
+pub enum ProcGenEvent {
+    RestartWorld,
+    NextLevel,
+}
 
 #[derive(Component)]
 pub struct PlayerMarker;
@@ -50,7 +53,9 @@ pub struct ClearLevel;
 #[allow(clippy::identity_op)]
 #[allow(clippy::too_many_arguments)]
 pub fn generate_level(
+    mut procgen: EventReader<ProcGenEvent>,
     clear: Query<Entity, With<ClearLevel>>,
+    world_entities: Query<&WorldEntity>,
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
@@ -63,459 +68,480 @@ pub fn generate_level(
     grid: Res<Grid>,
     radius: Res<MapRadius>,
 ) {
-    magic.reset(&mut rng);
+    for proc in procgen.read() {
+        let restart = proc == &ProcGenEvent::RestartWorld;
 
-    log.clear();
+        if restart {
+            magic.reset(&mut rng);
+            log.clear();
 
-    for c in &clear {
-        commands.entity(c).despawn_recursive();
-    }
-
-    fn clear_grid(
-        grid: &Res<Grid>,
-        rng: &mut ResMut<Random>,
-        map: &mut ResMut<WorldData>,
-        radius: &Res<MapRadius>,
-        visibility: &mut Query<&mut Visibility>,
-        sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
-    ) -> HashSet<IVec2> {
-        grid.entities.iter().for_each(|(pos, _)| {
-            map.blocking.remove(pos);
-            map.solid.remove(pos);
-        });
-
-        let symbols = Tiles::default()
-            .add_more(EMPTY_FLOOR, 4)
-            .add_bunch(&[
-                EXTERIOR_FLOOR1,
-                EXTERIOR_FLOOR2,
-                EXTERIOR_FLOOR3,
-                EXTERIOR_FLOOR4,
-            ])
-            .done();
-        let mut okay = HashSet::new();
-
-        map.solid.clear();
-        grid.entities.iter().for_each(|(pos, e)| {
-            if let Ok(mut vis) = visibility.get_mut(*e) {
-                *vis = Visibility::Hidden;
+            for c in &clear {
+                commands.entity(c).despawn_recursive();
             }
-
-            if let Ok((mut sprite, mut passable)) = sprites.get_mut(*e) {
-                let dist = pos.distance_squared(IVec2::ZERO);
-                let r = radius.0;
-                if dist < r || rng.gen(0..(r * 3 / 2)) > dist {
-                    sprite.index = symbols[rng.gen(0..symbols.len() as i32) as usize];
-                    sprite.color = Color::WHITE;
-                    *passable = Passability::Passable;
-                    okay.insert(*pos);
-                    map.data.set_transparent(
-                        (pos.x + grid.size.x / 2 + 1) as usize,
-                        (pos.y + grid.size.y / 2 + 1) as usize,
-                        true,
-                    );
-                } else {
-                    sprite.index = VOID.into();
-                    sprite.color = Color::WHITE;
-                    *passable = Passability::Blocking;
-                    map.data.set_transparent(
-                        (pos.x + grid.size.x / 2 + 1) as usize,
-                        (pos.y + grid.size.y / 2 + 1) as usize,
-                        false,
-                    );
-                    map.solid.insert(*pos);
-                }
-            }
-        });
-
-        okay
-    }
-
-    #[allow(clippy::identity_op)]
-    fn make_obstructions(
-        commands: &mut Commands,
-        count: usize,
-        size: IVec2,
-        rng: &mut ResMut<Random>,
-        grid: &Res<Grid>,
-        map: &mut ResMut<WorldData>,
-        okay: &mut HashSet<IVec2>,
-    ) {
-        let forest_tiles = Tiles::default()
-            .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
-            .add_more(FOREST4, 2)
-            .done();
-
-        let ruin_tiles = Tiles::default()
-            .add_more(WALL1, 4)
-            .add_bunch(&[WALL2, WALL3, WALL4, WALL5, WALL6])
-            .done();
-
-        for _attempt in 0..count {
-            let half = size / 2;
-            let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
-
-            let (tiles, passability) = if rng.coin() {
-                (forest_tiles.as_slice(), Passability::SightBlocking)
-            } else {
-                (ruin_tiles.as_slice(), Passability::Blocking)
-            };
-
-            let IVec2 { x, y } = rng.gen2d(3..6, 4..7);
-            for i in -x..=x {
-                for j in -y..=y {
-                    let pos = middle + IVec2::new(i, j);
-                    let dist = middle.distance_squared(pos);
-
-                    let index = rng.from(tiles);
-
-                    if okay.contains(&pos) && rng.percent(3 * dist as u32) {
-                        commands.add(ChangeSprite {
-                            position: pos,
-                            index,
-                        });
-
-                        commands.add(ChangePassability {
-                            position: pos,
-                            passable: passability,
-                        });
-
-                        if passability == Passability::Blocking {
-                            map.solid.insert(pos);
-                        }
-
-                        okay.remove(&pos);
-
-                        map.data.set_transparent(
-                            (pos.x + grid.size.x / 2 + 1) as usize,
-                            (pos.y + grid.size.y / 2 + 1) as usize,
-                            passability == Passability::Passable,
-                        );
-                    }
+        } else {
+            for c in &clear {
+                if world_entities
+                    .get(c)
+                    .map(|c| !c.is_player)
+                    .unwrap_or_default()
+                {
+                    commands.entity(c).despawn_recursive();
                 }
             }
         }
-    }
 
-    #[allow(clippy::identity_op)]
-    fn make_houses(
-        commands: &mut Commands,
-        count: usize,
-        size: IVec2,
-        rng: &mut ResMut<Random>,
-        grid: &Res<Grid>,
-        map: &mut ResMut<WorldData>,
-        okay: &mut HashSet<IVec2>,
-    ) {
-        let wall_tiles: Vec<usize> = Tiles::default().add_one(WALL1).done();
-        let floor_tiles: Vec<usize> = Tiles::default()
-            .add_more(INTERIOR_FLOOR2, 9)
-            .add_bunch(&[
-                EXTERIOR_FLOOR1,
-                EXTERIOR_FLOOR2,
-                EXTERIOR_FLOOR3,
-                EXTERIOR_FLOOR4,
-                INTERIOR_FLOOR1,
-            ])
-            .done();
+        fn clear_grid(
+            grid: &Res<Grid>,
+            rng: &mut ResMut<Random>,
+            map: &mut ResMut<WorldData>,
+            radius: &Res<MapRadius>,
+            visibility: &mut Query<&mut Visibility>,
+            sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
+        ) -> HashSet<IVec2> {
+            grid.entities.iter().for_each(|(pos, _)| {
+                map.blocking.remove(pos);
+                map.solid.remove(pos);
+            });
 
-        let mut walls = HashMap::new();
-        for _attempt in 0..count {
-            let half = size / 2;
-            let dx = -half.x..half.x;
-            let dy = -half.y..half.y;
-            let middle = rng.gen2d(dx, dy);
-            let room_size = rng.gen2d(3..7, 3..7);
-            for i in -room_size.x..=room_size.x {
-                for j in -room_size.y..=room_size.y {
-                    if rng.gen(0..100) > 70 {
-                        continue;
-                    }
+            let symbols = Tiles::default()
+                .add_more(EMPTY_FLOOR, 4)
+                .add_bunch(&[
+                    EXTERIOR_FLOOR1,
+                    EXTERIOR_FLOOR2,
+                    EXTERIOR_FLOOR3,
+                    EXTERIOR_FLOOR4,
+                ])
+                .done();
+            let mut okay = HashSet::new();
 
-                    let ij = IVec2::new(i, j);
-                    let pos = middle + ij;
-
-                    if okay.contains(&pos) {
-                        let index = rng.from(&wall_tiles);
-                        commands.add(ChangeSprite {
-                            position: pos,
-                            index,
-                        });
-
-                        walls.insert(pos, index);
-                        map.data.set_transparent(
-                            (pos.x + grid.size.x / 2 + 1) as usize,
-                            (pos.y + grid.size.y / 2 + 1) as usize,
-                            false,
-                        );
-                    }
+            map.solid.clear();
+            grid.entities.iter().for_each(|(pos, e)| {
+                if let Ok(mut vis) = visibility.get_mut(*e) {
+                    *vis = Visibility::Hidden;
                 }
-            }
 
-            for i in -room_size.x + 1..room_size.x {
-                for j in -room_size.y + 1..room_size.y {
-                    let ij = IVec2::new(i, j);
-                    let pos = middle + ij;
-
-                    if okay.contains(&pos) {
-                        let index = rng.from(&floor_tiles);
-                        commands.add(ChangeSprite {
-                            position: pos,
-                            index,
-                        });
-
-                        walls.remove(&pos);
+                if let Ok((mut sprite, mut passable)) = sprites.get_mut(*e) {
+                    let dist = pos.distance_squared(IVec2::ZERO);
+                    let r = radius.0;
+                    if dist < r || rng.gen(0..(r * 3 / 2)) > dist {
+                        sprite.index = symbols[rng.gen(0..symbols.len() as i32) as usize];
+                        sprite.color = Color::WHITE;
+                        *passable = Passability::Passable;
+                        okay.insert(*pos);
                         map.data.set_transparent(
                             (pos.x + grid.size.x / 2 + 1) as usize,
                             (pos.y + grid.size.y / 2 + 1) as usize,
                             true,
                         );
+                    } else {
+                        sprite.index = VOID.into();
+                        sprite.color = Color::WHITE;
+                        *passable = Passability::Blocking;
+                        map.data.set_transparent(
+                            (pos.x + grid.size.x / 2 + 1) as usize,
+                            (pos.y + grid.size.y / 2 + 1) as usize,
+                            false,
+                        );
+                        map.solid.insert(*pos);
+                    }
+                }
+            });
 
-                        if map.solid.contains(&pos) {
-                            map.solid.remove(&pos);
+            okay
+        }
+
+        #[allow(clippy::identity_op)]
+        fn make_obstructions(
+            commands: &mut Commands,
+            count: usize,
+            size: IVec2,
+            rng: &mut ResMut<Random>,
+            grid: &Res<Grid>,
+            map: &mut ResMut<WorldData>,
+            okay: &mut HashSet<IVec2>,
+        ) {
+            let forest_tiles = Tiles::default()
+                .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
+                .add_more(FOREST4, 2)
+                .done();
+
+            let ruin_tiles = Tiles::default()
+                .add_more(WALL1, 4)
+                .add_bunch(&[WALL2, WALL3, WALL4, WALL5, WALL6])
+                .done();
+
+            for _attempt in 0..count {
+                let half = size / 2;
+                let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
+
+                let (tiles, passability) = if rng.coin() {
+                    (forest_tiles.as_slice(), Passability::SightBlocking)
+                } else {
+                    (ruin_tiles.as_slice(), Passability::Blocking)
+                };
+
+                let IVec2 { x, y } = rng.gen2d(3..6, 4..7);
+                for i in -x..=x {
+                    for j in -y..=y {
+                        let pos = middle + IVec2::new(i, j);
+                        let dist = middle.distance_squared(pos);
+
+                        let index = rng.from(tiles);
+
+                        if okay.contains(&pos) && rng.percent(3 * dist as u32) {
+                            commands.add(ChangeSprite {
+                                position: pos,
+                                index,
+                            });
+
+                            commands.add(ChangePassability {
+                                position: pos,
+                                passable: passability,
+                            });
+
+                            if passability == Passability::Blocking {
+                                map.solid.insert(pos);
+                            }
+
+                            okay.remove(&pos);
+
+                            map.data.set_transparent(
+                                (pos.x + grid.size.x / 2 + 1) as usize,
+                                (pos.y + grid.size.y / 2 + 1) as usize,
+                                passability == Passability::Passable,
+                            );
                         }
                     }
                 }
             }
+        }
 
-            for (pos, wall) in &walls {
-                if okay.contains(pos) {
-                    commands.add(ChangePassability {
-                        position: *pos,
-                        passable: if *wall != wall_tiles[0] {
-                            Passability::Passable
-                        } else {
-                            Passability::Blocking
-                        },
-                    });
-                    okay.remove(pos);
-                    map.solid.insert(*pos);
+        #[allow(clippy::identity_op)]
+        fn make_houses(
+            commands: &mut Commands,
+            count: usize,
+            size: IVec2,
+            rng: &mut ResMut<Random>,
+            grid: &Res<Grid>,
+            map: &mut ResMut<WorldData>,
+            okay: &mut HashSet<IVec2>,
+        ) {
+            let wall_tiles: Vec<usize> = Tiles::default().add_one(WALL1).done();
+            let floor_tiles: Vec<usize> = Tiles::default()
+                .add_more(INTERIOR_FLOOR2, 9)
+                .add_bunch(&[
+                    EXTERIOR_FLOOR1,
+                    EXTERIOR_FLOOR2,
+                    EXTERIOR_FLOOR3,
+                    EXTERIOR_FLOOR4,
+                    INTERIOR_FLOOR1,
+                ])
+                .done();
+
+            let mut walls = HashMap::new();
+            for _attempt in 0..count {
+                let half = size / 2;
+                let dx = -half.x..half.x;
+                let dy = -half.y..half.y;
+                let middle = rng.gen2d(dx, dy);
+                let room_size = rng.gen2d(3..7, 3..7);
+                for i in -room_size.x..=room_size.x {
+                    for j in -room_size.y..=room_size.y {
+                        if rng.gen(0..100) > 70 {
+                            continue;
+                        }
+
+                        let ij = IVec2::new(i, j);
+                        let pos = middle + ij;
+
+                        if okay.contains(&pos) {
+                            let index = rng.from(&wall_tiles);
+                            commands.add(ChangeSprite {
+                                position: pos,
+                                index,
+                            });
+
+                            walls.insert(pos, index);
+                            map.data.set_transparent(
+                                (pos.x + grid.size.x / 2 + 1) as usize,
+                                (pos.y + grid.size.y / 2 + 1) as usize,
+                                false,
+                            );
+                        }
+                    }
+                }
+
+                for i in -room_size.x + 1..room_size.x {
+                    for j in -room_size.y + 1..room_size.y {
+                        let ij = IVec2::new(i, j);
+                        let pos = middle + ij;
+
+                        if okay.contains(&pos) {
+                            let index = rng.from(&floor_tiles);
+                            commands.add(ChangeSprite {
+                                position: pos,
+                                index,
+                            });
+
+                            walls.remove(&pos);
+                            map.data.set_transparent(
+                                (pos.x + grid.size.x / 2 + 1) as usize,
+                                (pos.y + grid.size.y / 2 + 1) as usize,
+                                true,
+                            );
+
+                            if map.solid.contains(&pos) {
+                                map.solid.remove(&pos);
+                            }
+                        }
+                    }
+                }
+
+                for (pos, wall) in &walls {
+                    if okay.contains(pos) {
+                        commands.add(ChangePassability {
+                            position: *pos,
+                            passable: if *wall != wall_tiles[0] {
+                                Passability::Passable
+                            } else {
+                                Passability::Blocking
+                            },
+                        });
+                        okay.remove(pos);
+                        map.solid.insert(*pos);
+                    }
                 }
             }
         }
-    }
 
-    let size = grid.size;
+        let size = grid.size;
 
-    map.data = MapData::new(122, 64);
-    map.memory.clear();
+        map.data = MapData::new(122, 64);
+        map.memory.clear();
 
-    turn_order.clear();
+        turn_order.clear();
 
-    let mut okay = clear_grid(
-        &grid,
-        &mut rng,
-        &mut map,
-        &radius,
-        &mut visibility,
-        &mut sprites,
-    );
+        let mut okay = clear_grid(
+            &grid,
+            &mut rng,
+            &mut map,
+            &radius,
+            &mut visibility,
+            &mut sprites,
+        );
 
-    make_obstructions(
-        &mut commands,
-        20,
-        size,
-        &mut rng,
-        &grid,
-        &mut map,
-        &mut okay,
-    );
-    make_houses(
-        &mut commands,
-        40,
-        size,
-        &mut rng,
-        &grid,
-        &mut map,
-        &mut okay,
-    );
+        make_obstructions(
+            &mut commands,
+            20,
+            size,
+            &mut rng,
+            &grid,
+            &mut map,
+            &mut okay,
+        );
+        make_houses(
+            &mut commands,
+            40,
+            size,
+            &mut rng,
+            &grid,
+            &mut map,
+            &mut okay,
+        );
 
-    let stats = [
-        CharacterStat::STR,
-        CharacterStat::ARC,
-        CharacterStat::INT,
-        CharacterStat::WIS,
-        CharacterStat::WIL,
-        CharacterStat::AGI,
-    ];
+        let stats = [
+            CharacterStat::STR,
+            CharacterStat::ARC,
+            CharacterStat::INT,
+            CharacterStat::WIS,
+            CharacterStat::WIL,
+            CharacterStat::AGI,
+        ];
 
-    let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
+        let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
 
-    // add staffs
-    for _ in 1..5 {
-        let mut builder = ItemBuilder::default()
-            .with_name("Staff")
-            .with_image(rng.from(&[STAFF1, STAFF2, STAFF3, STAFF4, STAFF5]))
-            .with_type(ItemType::Weapon);
+        // add staffs
+        for _ in 1..5 {
+            let mut builder = ItemBuilder::default()
+                .with_name("Staff")
+                .with_image(rng.from(&[STAFF1, STAFF2, STAFF3, STAFF4, STAFF5]))
+                .with_type(ItemType::Weapon);
 
-        builder = builder.with_stat(CharacterStat::ARC, 1);
-        builder = builder.with_stat(CharacterStat::WIS, 1);
-        for _ in 0..rng.gen(0..2) {
-            let mut stat = rng.from(&stats);
-            let mut power = 0;
-            while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
-                power = rng.gen(-1..3);
-                stat = rng.from(&stats);
+            builder = builder.with_stat(CharacterStat::ARC, 1);
+            builder = builder.with_stat(CharacterStat::WIS, 1);
+            for _ in 0..rng.gen(0..2) {
+                let mut stat = rng.from(&stats);
+                let mut power = 0;
+                while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
+                    power = rng.gen(-1..3);
+                    stat = rng.from(&stats);
+                }
+
+                builder = builder.with_stat(stat, power);
             }
 
-            builder = builder.with_stat(stat, power);
-        }
-
-        builder.create_at(
-            places.pop().unwrap_or_default(),
-            &mut commands,
-            &grid,
-            &magic,
-        )
-    }
-
-    // add swords
-    for _ in 1..3 {
-        let mut builder = ItemBuilder::default()
-            .with_name("Sword")
-            .with_image(rng.from(&[SWORD1, SWORD2, SWORD3, SWORD4, SWORD5]))
-            .with_type(ItemType::Weapon);
-
-        builder = builder.with_stat(CharacterStat::STR, 2);
-        for _ in 0..rng.gen(0..2) {
-            let mut stat = rng.from(&stats);
-            let mut power = 0;
-            while power == 0 || stat == CharacterStat::STR {
-                power = rng.gen(-1..3);
-                stat = rng.from(&stats);
-            }
-
-            builder = builder.with_stat(stat, power);
-        }
-
-        builder.create_at(
-            places.pop().unwrap_or_default(),
-            &mut commands,
-            &grid,
-            &magic,
-        )
-    }
-
-    for _ in 1..3 {
-        let mut builder = ItemBuilder::default()
-            .with_name("Dagger")
-            .with_image(rng.from(&[DAGGER1, DAGGER2, DAGGER3, DAGGER4, DAGGER5]))
-            .with_type(ItemType::Weapon);
-
-        builder = builder.with_stat(CharacterStat::AGI, 2);
-        for _ in 0..rng.gen(0..2) {
-            let mut stat = rng.from(&stats);
-            let mut power = 0;
-            while power == 0 || stat == CharacterStat::AGI {
-                power = rng.gen(-2..2);
-                stat = rng.from(&stats);
-            }
-
-            builder = builder.with_stat(stat, power);
-        }
-
-        builder.create_at(
-            places.pop().unwrap_or_default(),
-            &mut commands,
-            &grid,
-            &magic,
-        )
-    }
-
-    // add player
-    let mut player = commands.spawn(WorldEntityBundle::new(
-        &grid,
-        "You",
-        places.pop().unwrap_or_default(),
-        EMO_MAGE.into(),
-        true,
-        WorldEntityKind::Player,
-        None,
-    ));
-    player
-        .with_children(|f| {
-            f.spawn((
-                SpriteSheetBundle {
-                    sprite: TextureAtlasSprite::new(0),
-                    texture_atlas: grid.atlas.clone_weak(),
-                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
-                    ..Default::default()
-                },
-                RenderLayers::layer(1),
-            ));
-            f.spawn(((
-                SpriteSheetBundle {
-                    sprite: TextureAtlasSprite::new(SELECTION.into()),
-                    texture_atlas: grid.atlas.clone_weak(),
-                    transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0))
-                        .with_scale(Vec3::new(1.5, 1.5, 1.5)),
-                    ..Default::default()
-                },
-                RenderLayers::layer(1),
-                TweenSize {
-                    baseline: 1.5,
-                    max: 0.25,
-                },
-            ),));
-        })
-        .insert((
-            Character {
-                agility: 3,
-                ..Default::default()
-            },
-            RecoveryCounter::default(),
-            CarriedItems::default(),
-            EquippedItems::default(),
-            PlayerMarker,
-            PlayerState::default(),
-            PendingActions::default(),
-            Health::new(10),
-            TurnTaker,
-            PickableBundle::default(),
-            On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-            Sight(6),
-        ));
-
-    // add mobs
-    for i in 1..10 {
-        let char = Character::random(&mut rng);
-        let index: usize = OLD_MAGE.into();
-
-        commands
-            .spawn(WorldEntityBundle::new(
-                &grid,
-                format!("Mage {}", i).as_str(),
+            builder.create_at(
                 places.pop().unwrap_or_default(),
-                index + rng.gen(0..7) as usize,
+                &mut commands,
+                &grid,
+                &magic,
+            )
+        }
+
+        // add swords
+        for _ in 1..3 {
+            let mut builder = ItemBuilder::default()
+                .with_name("Sword")
+                .with_image(rng.from(&[SWORD1, SWORD2, SWORD3, SWORD4, SWORD5]))
+                .with_type(ItemType::Weapon);
+
+            builder = builder.with_stat(CharacterStat::STR, 2);
+            for _ in 0..rng.gen(0..2) {
+                let mut stat = rng.from(&stats);
+                let mut power = 0;
+                while power == 0 || stat == CharacterStat::STR {
+                    power = rng.gen(-1..3);
+                    stat = rng.from(&stats);
+                }
+
+                builder = builder.with_stat(stat, power);
+            }
+
+            builder.create_at(
+                places.pop().unwrap_or_default(),
+                &mut commands,
+                &grid,
+                &magic,
+            )
+        }
+
+        for _ in 1..3 {
+            let mut builder = ItemBuilder::default()
+                .with_name("Dagger")
+                .with_image(rng.from(&[DAGGER1, DAGGER2, DAGGER3, DAGGER4, DAGGER5]))
+                .with_type(ItemType::Weapon);
+
+            builder = builder.with_stat(CharacterStat::AGI, 2);
+            for _ in 0..rng.gen(0..2) {
+                let mut stat = rng.from(&stats);
+                let mut power = 0;
+                while power == 0 || stat == CharacterStat::AGI {
+                    power = rng.gen(-2..2);
+                    stat = rng.from(&stats);
+                }
+
+                builder = builder.with_stat(stat, power);
+            }
+
+            builder.create_at(
+                places.pop().unwrap_or_default(),
+                &mut commands,
+                &grid,
+                &magic,
+            )
+        }
+
+        // add player
+        if restart {
+            let mut player = commands.spawn(WorldEntityBundle::new(
+                &grid,
+                "You",
+                places.pop().unwrap_or_default(),
+                EMO_MAGE.into(),
                 true,
-                WorldEntityKind::NPC,
-                Some(char.get_strongest_stat_color(&magic)),
-            ))
-            .with_children(|f| {
-                f.spawn(((
-                    SpriteSheetBundle {
-                        sprite: TextureAtlasSprite::new(0),
-                        texture_atlas: grid.atlas.clone_weak(),
-                        transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                WorldEntityKind::Player,
+                None,
+            ));
+            player
+                .with_children(|f| {
+                    f.spawn((
+                        SpriteSheetBundle {
+                            sprite: TextureAtlasSprite::new(0),
+                            texture_atlas: grid.atlas.clone_weak(),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                            ..Default::default()
+                        },
+                        RenderLayers::layer(1),
+                    ));
+                    f.spawn(((
+                        SpriteSheetBundle {
+                            sprite: TextureAtlasSprite::new(SELECTION.into()),
+                            texture_atlas: grid.atlas.clone_weak(),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0))
+                                .with_scale(Vec3::new(1.5, 1.5, 1.5)),
+                            ..Default::default()
+                        },
+                        RenderLayers::layer(1),
+                        TweenSize {
+                            baseline: 1.5,
+                            max: 0.25,
+                        },
+                    ),));
+                })
+                .insert((
+                    Character {
+                        agility: 3,
                         ..Default::default()
                     },
-                    RenderLayers::layer(1),
-                ),));
-            })
-            .insert((
-                TurnTaker,
-                char,
-                AIAgent::default(),
-                CarriedItems::default(),
-                EquippedItems::default(),
-                PendingActions::default(),
-                PickableBundle::default(),
-                RecoveryCounter::default(),
-                On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-                Health::new(5),
-            ));
+                    RecoveryCounter::default(),
+                    CarriedItems::default(),
+                    EquippedItems::default(),
+                    PlayerMarker,
+                    PlayerState::default(),
+                    PendingActions::default(),
+                    Health::new(10),
+                    Focus(0),
+                    TurnTaker,
+                    PickableBundle::default(),
+                    On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+                    Sight(6),
+                ));
+        } else {
+            // TODO: move player to safe place
+        }
+
+        // add mobs
+        for i in 1..10 {
+            let char = Character::random(&mut rng);
+            let index: usize = OLD_MAGE.into();
+
+            commands
+                .spawn(WorldEntityBundle::new(
+                    &grid,
+                    format!("Mage {}", i).as_str(),
+                    places.pop().unwrap_or_default(),
+                    index + rng.gen(0..7) as usize,
+                    true,
+                    WorldEntityKind::NPC,
+                    Some(char.get_strongest_stat_color(&magic)),
+                ))
+                .with_children(|f| {
+                    f.spawn(((
+                        SpriteSheetBundle {
+                            sprite: TextureAtlasSprite::new(0),
+                            texture_atlas: grid.atlas.clone_weak(),
+                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+                            ..Default::default()
+                        },
+                        RenderLayers::layer(1),
+                    ),));
+                })
+                .insert((
+                    TurnTaker,
+                    char,
+                    Focus(0),
+                    AIAgent::default(),
+                    CarriedItems::default(),
+                    EquippedItems::default(),
+                    PendingActions::default(),
+                    PickableBundle::default(),
+                    RecoveryCounter::default(),
+                    On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+                    Health::new(5),
+                ));
+        }
+        turn_order_progress.send(TurnOrderProgressEvent);
     }
-    turn_order_progress.send(TurnOrderProgressEvent);
 }
 
 pub fn debug_radius(mut map_radius: ResMut<MapRadius>, keys: Res<Input<KeyCode>>) {
@@ -540,7 +566,7 @@ pub fn debug_procgen(
     mut debug: ResMut<DebugFlag>,
 ) {
     if keys.just_pressed(KeyCode::F5) {
-        procgen_events.send(ProcGenEvent);
+        procgen_events.send(ProcGenEvent::RestartWorld);
     }
 
     if keys.just_pressed(KeyCode::F12) {

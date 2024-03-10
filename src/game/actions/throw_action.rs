@@ -1,7 +1,5 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 use bresenham::Bresenham;
-use funty::Floating;
-use std::{thread, time::Duration};
 
 use crate::game::{
     actions::a_fly,
@@ -9,6 +7,7 @@ use crate::game::{
     grid::{Grid, WorldEntity},
     history::HistoryLog,
     inventory::{CarriedItems, CarriedMarker, Item},
+    procgen::ClearLevel,
     turns::TurnTaker,
 };
 
@@ -78,6 +77,7 @@ impl Action for ThrowAction {
 
         for marked in mark_carried {
             world.entity_mut(marked).remove::<CarriedMarker>();
+            world.entity_mut(marked).insert(ClearLevel);
         }
 
         let max_dist = (((str.min(5) + will.min(5)) as f32) * 1.5).ceil() as usize;

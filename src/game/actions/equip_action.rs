@@ -42,19 +42,32 @@ impl Action for EquipAction {
             return vec![];
         };
 
+        let mut message = vec![];
         if let Ok((mut character, world_entity, carried, mut equipped)) =
             world_entity_query.get_mut(self.who)
         {
             if carried.0.iter().any(|i| *i == self.what)
                 && !equipped.0.iter().any(|i| *i == self.what)
             {
+                message.push(format!("{} equipped {}.", world_entity.name, item.name));
                 equipped.0.push(self.what);
 
                 for (stat, val) in &item.equip_stat_changes {
                     character[*stat] += *val;
+                    {
+                        let e = character.counters.entry(*stat).or_insert(0);
+                        *e += 1;
+                    }
+                    message.push(format!(
+                        "{} {} {} by {}.",
+                        world_entity.name,
+                        if *val > 0 { "raise" } else { "lower" },
+                        format!("{:?}", *stat).to_uppercase(),
+                        val.abs()
+                    ));
                 }
 
-                log.add(&format!("{} equipped {}.", world_entity.name, item.name));
+                log.add(&message.join(" "));
             }
         }
 

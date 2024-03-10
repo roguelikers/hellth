@@ -5,6 +5,7 @@ use crate::game::{
     grid::WorldEntity,
     history::HistoryLog,
     inventory::{CarriedItems, CarriedMarker, Item},
+    procgen::ClearLevel,
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -25,13 +26,16 @@ impl Action for PickupAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
+        let mut clear_items = vec![];
+
         let mut read_system_state = SystemState::<(
             Query<(&WorldEntity, Option<&mut CarriedItems>)>,
             Query<(&Item, &mut Visibility)>,
+            Query<(&ClearLevel)>,
             ResMut<HistoryLog>,
         )>::new(world);
 
-        let (mut world_entities, mut items, mut log) = read_system_state.get_mut(world);
+        let (mut world_entities, mut items, clear, mut log) = read_system_state.get_mut(world);
 
         let Ok((person_entity, Some(mut person_carrying))) = world_entities.get_mut(self.who)
         else {
@@ -52,14 +56,25 @@ impl Action for PickupAction {
 
                 if person_entity.is_player {
                     log.add(&format!("Picked up {}.", item.name));
+                    if clear.contains(*item_entity) {
+                        clear_items.push(*item_entity);
+                    }
                 }
             } else {
                 log.add("No more space for items. Drop something first.");
             }
         }
 
-        for marked in mark_carried {
-            world.entity_mut(marked).insert(CarriedMarker);
+        {
+            for marked in mark_carried {
+                world.entity_mut(marked).insert(CarriedMarker);
+            }
+        }
+
+        {
+            for item in clear_items {
+                world.entity_mut(item).remove::<ClearLevel>();
+            }
         }
 
         vec![]

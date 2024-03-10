@@ -49,6 +49,10 @@ impl Action for HitAction {
         let diff = target_health.normal_damage(damage_amount as usize);
         for (stat, val) in diff {
             character[stat] += val;
+            {
+                let e = character.counters.entry(stat).or_insert(0);
+                *e += 1;
+            }
         }
 
         if player_query.contains(self.target) {
