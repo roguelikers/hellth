@@ -94,7 +94,21 @@ pub fn recalculate_fov(
 
     {
         let (x, y) = grid.norm(player_in_world.position);
-        fov.compute_fov(&mut map.data, x, y, sight.0 as usize, true);
+
+        let sight_affected_by_stats = {
+            let mut e = (character.willpower + character.intelligence).min(9);
+            let s = sight.0 as i32;
+            if e <= -s / 2 {
+                e = -s / 2;
+            }
+
+            let mut m = s + e;
+            if m < 0 {
+                m = 1;
+            }
+            m as usize
+        };
+        fov.compute_fov(&mut map.data, x, y, sight_affected_by_stats, true);
     }
 
     grid.entities.iter().for_each(|(pos, e)| {

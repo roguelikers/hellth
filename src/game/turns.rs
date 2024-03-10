@@ -5,8 +5,10 @@ use priority_queue::PriorityQueue;
 use super::{
     ai::{AIAgent, PendingActions},
     character::Character,
+    feel::Random,
     grid::WorldEntity,
     health::{Health, HitPoint, RecoveryCounter},
+    history::HistoryLog,
     DebugFlag,
 };
 
@@ -117,12 +119,21 @@ fn get_recovery_based_on_str(str: i32) -> u32 {
 fn on_turn_end(
     mut end_turn: EventReader<EndTurnEvent>,
     mut turn_counter: ResMut<TurnCounter>,
-    mut health: Query<(&mut Character, &mut Health, &mut RecoveryCounter)>,
+    mut health: Query<(
+        &mut Character,
+        &mut Health,
+        &mut RecoveryCounter,
+        &WorldEntity,
+    )>,
+    mut log: ResMut<HistoryLog>,
+    mut rng: ResMut<Random>,
 ) {
     for _ in end_turn.read() {
-        turn_counter.0 += 1;
+        for (mut char, mut health, mut recovery, world_entity) in &mut health {
+            if world_entity.is_player && !health.hitpoints.is_empty() {
+                turn_counter.0 += 1;
+            }
 
-        for (mut char, mut health, mut recovery) in &mut health {
             let turns_needed = get_recovery_based_on_str(char.strength);
             recovery.0 += 1;
             if turns_needed <= recovery.0 {
@@ -131,6 +142,16 @@ fn on_turn_end(
                     health.hitpoints.push_front(HitPoint::default());
                     if let Some((stat, val)) = rightmost.stat {
                         char[stat] -= val;
+                        log.add(&format!(
+                            "You can feel your body force thaum out. {} {} is dispelled.",
+                            val,
+                            format!("{:?}", stat).to_uppercase(),
+                        ));
+                    }
+
+                    if char.strength >= 8 && health.hitpoints.len() < health.size && rng.coin() {
+                        log.add("You can feel your wounds healing.");
+                        health.normal_heal(1);
                     }
                 }
             }

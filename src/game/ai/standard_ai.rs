@@ -34,9 +34,9 @@ impl AIBehaviour for StandardAIThinking {
 
         if enemy_hp.hitpoints.len() + 1 >= player_hp.hitpoints.len() && distance < 3.0 {
             return vec![
-                a_melee(player, player_pos - enemy_pos),
-                a_melee(player, player_pos - enemy_pos),
-                a_melee(player, player_pos - enemy_pos),
+                a_track(entity, player),
+                a_track(entity, player),
+                a_track(entity, player),
             ];
         }
 

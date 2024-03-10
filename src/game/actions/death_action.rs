@@ -3,6 +3,8 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use crate::game::{
     character::Character,
     grid::{WorldData, WorldEntity},
+    mobs::TheHealer,
+    player::PlayerState,
     turns::{TurnOrder, TurnOrderEntity},
 };
 
@@ -23,14 +25,21 @@ impl Action for DeathAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
-        let result = {
+        let (result, is_player) = {
             let mut read_system_state = SystemState::<(
                 ResMut<WorldData>,
                 ResMut<TurnOrder>,
                 Query<(&Character, &mut WorldEntity)>,
+                Query<&TheHealer>,
+                ResMut<PlayerState>,
             )>::new(world);
-            let (mut world_data, mut turn_order, mut world_entity_query) =
-                read_system_state.get_mut(world);
+            let (
+                mut world_data,
+                mut turn_order,
+                mut world_entity_query,
+                healer_query,
+                mut player_state,
+            ) = read_system_state.get_mut(world);
 
             let Ok((character, world_entity)) = world_entity_query.get_mut(self.entity) else {
                 return vec![];
@@ -45,21 +54,33 @@ impl Action for DeathAction {
             if !world_entity.is_player {
                 let stats = make_item(character);
 
-                if !stats.is_empty() {
-                    vec![a_leave_bones(stats, world_entity.position)]
-                } else {
-                    vec![]
+                if healer_query.contains(self.entity) {
+                    *player_state = PlayerState::Ascended;
                 }
+
+                (
+                    if !stats.is_empty() {
+                        vec![a_leave_bones(stats, world_entity.position)]
+                    } else {
+                        vec![]
+                    },
+                    false,
+                )
             } else {
-                vec![a_leave_bones(vec![], world_entity.position)]
+                println!("PLAYER DIED");
+                *player_state = PlayerState::Dead;
+                (vec![], true)
             }
         };
 
         {
-            let mut to_remove = vec![self.entity];
-            if let Some(ch) = world.get::<Children>(self.entity) {
-                for c in ch.iter() {
-                    to_remove.push(*c);
+            let mut to_remove = vec![];
+            if !is_player {
+                if let Some(ch) = world.get::<Children>(self.entity) {
+                    to_remove.push(self.entity);
+                    for c in ch.iter() {
+                        to_remove.push(*c);
+                    }
                 }
             }
 

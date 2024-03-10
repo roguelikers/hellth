@@ -22,6 +22,7 @@ pub mod history;
 pub mod inventory;
 pub mod loading;
 pub mod magic;
+pub mod mobs;
 pub mod player;
 pub mod procgen;
 pub mod spells;

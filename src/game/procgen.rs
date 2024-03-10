@@ -19,10 +19,11 @@ use crate::game::{
     health::{Health, RecoveryCounter},
     inventory::{CarriedItems, EquippedItems, ItemBuilder, ItemType},
     magic::{Focus, Magic},
+    mobs::{make_acolyte, make_bat, make_goblin, make_healer, make_orc, make_thaumaturge},
     player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
-    turns::TurnTaker,
+    turns::{Energy, TurnOrderEntity, TurnTaker},
     ui::ShowEntityDetails,
 };
 
@@ -31,7 +32,7 @@ use super::{
     fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
     grid::{Grid, Passability, WorldData, WorldEntity},
     history::HistoryLog,
-    turns::{TurnOrder, TurnOrderProgressEvent},
+    turns::{TurnCounter, TurnOrder, TurnOrderProgressEvent},
     DebugFlag, GameStates,
 };
 
@@ -47,6 +48,9 @@ pub struct PlayerMarker;
 #[derive(Resource)]
 pub struct MapRadius(pub i32);
 
+#[derive(Resource)]
+pub struct LevelDepth(pub u32);
+
 #[derive(Component)]
 pub struct ClearLevel;
 
@@ -54,8 +58,9 @@ pub struct ClearLevel;
 #[allow(clippy::too_many_arguments)]
 pub fn generate_level(
     mut procgen: EventReader<ProcGenEvent>,
+    player: Query<Entity, With<PlayerMarker>>,
     clear: Query<Entity, With<ClearLevel>>,
-    world_entities: Query<&WorldEntity>,
+    mut world_entities: Query<(&mut WorldEntity, &mut Transform)>,
     mut commands: Commands,
     mut map: ResMut<WorldData>,
     mut rng: ResMut<Random>,
@@ -66,10 +71,22 @@ pub fn generate_level(
     mut log: ResMut<HistoryLog>,
     mut magic: ResMut<Magic>,
     grid: Res<Grid>,
-    radius: Res<MapRadius>,
+    mut radius: ResMut<MapRadius>,
+    depth: Res<LevelDepth>,
 ) {
     for proc in procgen.read() {
         let restart = proc == &ProcGenEvent::RestartWorld;
+
+        if !restart {
+            let mut r = radius.0;
+            r -= 50;
+
+            if r <= 50 {
+                r = 50;
+            }
+
+            radius.0 = r;
+        }
 
         if restart {
             magic.reset(&mut rng);
@@ -82,7 +99,7 @@ pub fn generate_level(
             for c in &clear {
                 if world_entities
                     .get(c)
-                    .map(|c| !c.is_player)
+                    .map(|c| !c.0.is_player)
                     .unwrap_or_default()
                 {
                     commands.entity(c).despawn_recursive();
@@ -94,7 +111,7 @@ pub fn generate_level(
             grid: &Res<Grid>,
             rng: &mut ResMut<Random>,
             map: &mut ResMut<WorldData>,
-            radius: &Res<MapRadius>,
+            radius: &ResMut<MapRadius>,
             visibility: &mut Query<&mut Visibility>,
             sprites: &mut Query<(&mut TextureAtlasSprite, &mut Passability)>,
         ) -> HashSet<IVec2> {
@@ -123,7 +140,7 @@ pub fn generate_level(
                 if let Ok((mut sprite, mut passable)) = sprites.get_mut(*e) {
                     let dist = pos.distance_squared(IVec2::ZERO);
                     let r = radius.0;
-                    if dist < r || rng.gen(0..(r * 3 / 2)) > dist {
+                    if dist < r {
                         sprite.index = symbols[rng.gen(0..symbols.len() as i32) as usize];
                         sprite.color = Color::WHITE;
                         *passable = Passability::Passable;
@@ -157,6 +174,7 @@ pub fn generate_level(
             size: IVec2,
             rng: &mut ResMut<Random>,
             grid: &Res<Grid>,
+            depth: &Res<LevelDepth>,
             map: &mut ResMut<WorldData>,
             okay: &mut HashSet<IVec2>,
         ) {
@@ -174,7 +192,7 @@ pub fn generate_level(
                 let half = size / 2;
                 let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
 
-                let (tiles, passability) = if rng.coin() {
+                let (tiles, passability) = if rng.percent(45 + depth.0 * 5) {
                     (forest_tiles.as_slice(), Passability::SightBlocking)
                 } else {
                     (ruin_tiles.as_slice(), Passability::Blocking)
@@ -332,16 +350,17 @@ pub fn generate_level(
 
         make_obstructions(
             &mut commands,
-            20,
+            20 + depth.0 as usize,
             size,
             &mut rng,
             &grid,
+            &depth,
             &mut map,
             &mut okay,
         );
         make_houses(
             &mut commands,
-            40,
+            40 - depth.0 as usize,
             size,
             &mut rng,
             &grid,
@@ -358,10 +377,26 @@ pub fn generate_level(
             CharacterStat::AGI,
         ];
 
-        let mut places = rng.shuffle(okay.into_iter().collect::<Vec<_>>());
+        let mut places = rng.shuffle(
+            okay.into_iter()
+                //.filter(|p| p.distance_squared(IVec2::ZERO) < radius.0 * radius.0)
+                .collect::<Vec<_>>(),
+        );
+
+        if !restart {
+            // TODO: move player to safe place
+            if let Ok((mut world, mut transform)) = world_entities.get_mut(player.single()) {
+                if let Some(place) = places.pop() {
+                    world.position = place;
+                    let z = transform.translation.z;
+                    *transform = grid.get_tile_position(place);
+                    transform.translation.z = z;
+                }
+            }
+        }
 
         // add staffs
-        for _ in 1..5 {
+        for _ in 1..(5 + depth.0) {
             let mut builder = ItemBuilder::default()
                 .with_name("Staff")
                 .with_image(rng.from(&[STAFF1, STAFF2, STAFF3, STAFF4, STAFF5]))
@@ -369,11 +404,11 @@ pub fn generate_level(
 
             builder = builder.with_stat(CharacterStat::ARC, 1);
             builder = builder.with_stat(CharacterStat::WIS, 1);
-            for _ in 0..rng.gen(0..2) {
+            for _ in 0..rng.gen(0..(2 + depth.0 as i32).clamp(2, 4)) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
                 while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
-                    power = rng.gen(-1..3);
+                    power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
                     stat = rng.from(&stats);
                 }
 
@@ -389,18 +424,18 @@ pub fn generate_level(
         }
 
         // add swords
-        for _ in 1..3 {
+        for _ in 1..(depth.0 as i32 + rng.gen(0..(2 + depth.0 as i32).clamp(1, 4))) {
             let mut builder = ItemBuilder::default()
                 .with_name("Sword")
                 .with_image(rng.from(&[SWORD1, SWORD2, SWORD3, SWORD4, SWORD5]))
                 .with_type(ItemType::Weapon);
 
-            builder = builder.with_stat(CharacterStat::STR, 2);
+            builder = builder.with_stat(CharacterStat::STR, 2 + (depth.0 / 3) as i32);
             for _ in 0..rng.gen(0..2) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
                 while power == 0 || stat == CharacterStat::STR {
-                    power = rng.gen(-1..3);
+                    power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
                     stat = rng.from(&stats);
                 }
 
@@ -415,18 +450,18 @@ pub fn generate_level(
             )
         }
 
-        for _ in 1..3 {
+        for _ in 1..(depth.0 as i32 + rng.gen(0..(2 + depth.0 as i32).clamp(2, 4))) {
             let mut builder = ItemBuilder::default()
                 .with_name("Dagger")
                 .with_image(rng.from(&[DAGGER1, DAGGER2, DAGGER3, DAGGER4, DAGGER5]))
                 .with_type(ItemType::Weapon);
 
-            builder = builder.with_stat(CharacterStat::AGI, 2);
+            builder = builder.with_stat(CharacterStat::AGI, 2 + (depth.0 / 3) as i32);
             for _ in 0..rng.gen(0..2) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
                 while power == 0 || stat == CharacterStat::AGI {
-                    power = rng.gen(-2..2);
+                    power = rng.gen((-2 - depth.0 as i32)..(2 + depth.0 as i32));
                     stat = rng.from(&stats);
                 }
 
@@ -487,7 +522,6 @@ pub fn generate_level(
                     CarriedItems::default(),
                     EquippedItems::default(),
                     PlayerMarker,
-                    PlayerState::default(),
                     PendingActions::default(),
                     Health::new(10),
                     Focus(0),
@@ -497,49 +531,197 @@ pub fn generate_level(
                     Sight(6),
                 ));
         } else {
-            // TODO: move player to safe place
+            turn_order.order.push(
+                TurnOrderEntity {
+                    entity: player.single(),
+                },
+                Energy(0),
+            );
         }
 
         // add mobs
-        for i in 1..10 {
-            let char = Character::random(&mut rng);
-            let index: usize = OLD_MAGE.into();
 
-            commands
-                .spawn(WorldEntityBundle::new(
+        match depth.0 {
+            1 => {
+                for i in 2..rng.gen(3..5) {
+                    make_orc(
+                        &mut commands,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                        rng.percent(10u32),
+                    );
+                }
+
+                for i in 3..rng.gen(6..10) {
+                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                }
+
+                for i in 0..rng.gen(0..5) {
+                    make_bat(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+            }
+
+            2 => {
+                for i in 2..rng.gen(2..5) {
+                    make_orc(
+                        &mut commands,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                        rng.percent(20u32),
+                    );
+                }
+
+                for i in 2..rng.gen(3..10) {
+                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                }
+
+                for i in 0..rng.gen(2..6) {
+                    make_bat(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+            }
+
+            3 => {
+                make_acolyte(
+                    &mut commands,
+                    &mut rng,
                     &grid,
-                    format!("Mage {}", i).as_str(),
                     places.pop().unwrap_or_default(),
-                    index + rng.gen(0..7) as usize,
-                    true,
-                    WorldEntityKind::NPC,
-                    Some(char.get_strongest_stat_color(&magic)),
-                ))
-                .with_children(|f| {
-                    f.spawn(((
-                        SpriteSheetBundle {
-                            sprite: TextureAtlasSprite::new(0),
-                            texture_atlas: grid.atlas.clone_weak(),
-                            transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
-                            ..Default::default()
-                        },
-                        RenderLayers::layer(1),
-                    ),));
-                })
-                .insert((
-                    TurnTaker,
-                    char,
-                    Focus(0),
-                    AIAgent::default(),
-                    CarriedItems::default(),
-                    EquippedItems::default(),
-                    PendingActions::default(),
-                    PickableBundle::default(),
-                    RecoveryCounter::default(),
-                    On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-                    Health::new(5),
-                ));
+                );
+
+                for i in 3..rng.gen(3..10) {
+                    make_orc(
+                        &mut commands,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                        rng.percent(20u32),
+                    );
+                }
+
+                for i in 2..rng.gen(2..6) {
+                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                }
+
+                for i in 0..rng.gen(0..6) {
+                    make_bat(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+            }
+
+            4 => {
+                for i in 2..rng.gen(2..4) {
+                    make_acolyte(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+
+                for i in 1..rng.gen(1..3) {
+                    make_thaumaturge(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+
+                for i in 1..rng.gen(1..5) {
+                    make_orc(
+                        &mut commands,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                        rng.percent(70u32),
+                    );
+                }
+
+                for i in 1..rng.gen(1..6) {
+                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                }
+            }
+
+            5 => {
+                for i in 5..rng.gen(5..9) {
+                    make_acolyte(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+
+                for i in 1..rng.gen(5..10) {
+                    make_thaumaturge(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places.pop().unwrap_or_default(),
+                    );
+                }
+
+                make_healer(
+                    &mut commands,
+                    &mut rng,
+                    &grid,
+                    places.pop().unwrap_or_default(),
+                );
+            }
+
+            _ => {}
         }
+
+        // let char = Character::random(&mut rng);
+        // let index: usize = OLD_MAGE.into();
+
+        // commands
+        //     .spawn(WorldEntityBundle::new(
+        //         &grid,
+        //         format!("Mage {}", i).as_str(),
+        //         places.pop().unwrap_or_default(),
+        //         index + rng.gen(0..7) as usize,
+        //         true,
+        //         WorldEntityKind::NPC,
+        //         Some(char.get_strongest_stat_color(&magic)),
+        //     ))
+        //     .with_children(|f| {
+        //         f.spawn(((
+        //             SpriteSheetBundle {
+        //                 sprite: TextureAtlasSprite::new(0),
+        //                 texture_atlas: grid.atlas.clone_weak(),
+        //                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+        //                 ..Default::default()
+        //             },
+        //             RenderLayers::layer(1),
+        //         ),));
+        //     })
+        //     .insert((
+        //         TurnTaker,
+        //         char,
+        //         Focus(0),
+        //         AIAgent::default(),
+        //         CarriedItems::default(),
+        //         EquippedItems::default(),
+        //         PendingActions::default(),
+        //         PickableBundle::default(),
+        //         RecoveryCounter::default(),
+        //         On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
+        //         Health::new(5),
+        //     ));
+
         turn_order_progress.send(TurnOrderProgressEvent);
     }
 }
@@ -563,10 +745,12 @@ pub fn debug_radius(mut map_radius: ResMut<MapRadius>, keys: Res<Input<KeyCode>>
 pub fn debug_procgen(
     mut procgen_events: EventWriter<ProcGenEvent>,
     keys: Res<Input<KeyCode>>,
+    mut turn_counter: ResMut<TurnCounter>,
     mut debug: ResMut<DebugFlag>,
 ) {
     if keys.just_pressed(KeyCode::F5) {
         procgen_events.send(ProcGenEvent::RestartWorld);
+        turn_counter.0 = 0;
     }
 
     if keys.just_pressed(KeyCode::F12) {
@@ -581,6 +765,7 @@ impl Plugin for SvarogProcgenPlugin {
         bevy.add_event::<ProcGenEvent>()
             .add_event::<RecalculateFOVEvent>()
             .insert_resource(MapRadius(800))
+            .insert_resource(LevelDepth(1))
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(Msaa::Off)
             .add_systems(Update, generate_level.run_if(on_event::<ProcGenEvent>()))

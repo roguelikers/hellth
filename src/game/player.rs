@@ -1,4 +1,5 @@
 use bevy::{
+    app::AppExit,
     prelude::*,
     render::{camera::CameraUpdateSystem, view::RenderLayers},
     transform::TransformSystem,
@@ -7,7 +8,9 @@ use bevy::{
 use crate::game::actions::{a_drop, a_move};
 
 use super::{
-    actions::{a_consume, a_equip, a_pickup, a_throw, a_unequip, a_wait, ActionEvent},
+    actions::{
+        a_consume, a_descend, a_equip, a_focus, a_pickup, a_throw, a_unequip, a_wait, ActionEvent,
+    },
     ai::PendingActions,
     character::Character,
     feel::{Targeting, TweenSize},
@@ -17,13 +20,13 @@ use super::{
     inventory::{
         CarriedItems, CarriedMarker, CurrentlySelectedItem, EquippedItems, Item, ItemActions,
     },
-    procgen::PlayerMarker,
+    procgen::{LevelDepth, PlayerMarker, ProcGenEvent},
     sprites::TARGET,
-    turns::TurnOrder,
+    turns::{TurnCounter, TurnOrder},
     GameStates,
 };
 
-#[derive(Component, Default)]
+#[derive(Resource, Default, Debug)]
 pub enum PlayerState {
     Idle,
     Dead,
@@ -36,6 +39,12 @@ pub enum PlayerState {
     },
     #[default]
     Help,
+    SacrificeWarning,
+    Sacrifice,
+    Descended,
+    Ascended,
+    Exiting,
+    Shutdown,
 }
 
 fn try_item_keys(keys: &Res<Input<KeyCode>>) -> Option<usize> {
@@ -86,10 +95,18 @@ fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
     }
 }
 
+pub fn on_shutdown(player_state: Res<PlayerState>, mut exit: EventWriter<AppExit>) {
+    if matches!(*player_state, PlayerState::Shutdown) {
+        exit.send(AppExit);
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 #[allow(unused_assignments)]
 pub fn character_controls(
+    mut procgen_events: EventWriter<ProcGenEvent>,
+    mut turn_counter: ResMut<TurnCounter>,
     mut turn_order: ResMut<TurnOrder>,
     grid: Res<Grid>,
     map: Res<WorldData>,
@@ -100,12 +117,11 @@ pub fn character_controls(
         (
             Entity,
             &WorldEntity,
-            &Health,
-            &Character,
+            &mut Health,
+            &mut Character,
             &mut CarriedItems,
             &mut EquippedItems,
             &mut PendingActions,
-            &mut PlayerState,
         ),
         With<PlayerMarker>,
     >,
@@ -116,10 +132,19 @@ pub fn character_controls(
     carried_item_query: Query<&Item, With<CarriedMarker>>,
     mut actions: EventWriter<ActionEvent>,
     mut history: ResMut<HistoryLog>,
+    mut depth: ResMut<LevelDepth>,
     mut currently_selected_item: ResMut<CurrentlySelectedItem>,
+    mut player_state: ResMut<PlayerState>,
 ) {
+    if matches!(*player_state, PlayerState::Dead) && keys.just_pressed(KeyCode::Space) {
+        *player_state = PlayerState::Help;
+        procgen_events.send(ProcGenEvent::RestartWorld);
+        turn_counter.0 = 0;
+    }
+
     if let Some(e) = turn_order.peek() {
         if !player_query.contains(e) {
+            //println!("#1");
             return;
         }
     }
@@ -127,14 +152,14 @@ pub fn character_controls(
     let Ok((
         entity,
         player_game_entity,
-        health,
-        character,
+        mut health,
+        mut character,
         mut inventory,
         mut equipped,
         mut pending_actions,
-        mut player_state,
     )) = player_query.get_single_mut()
     else {
+        //println!("#2");
         return;
     };
 
@@ -144,6 +169,23 @@ pub fn character_controls(
         taken_action = Some(ActionEvent(next_action));
     } else {
         match player_state.as_ref() {
+            PlayerState::Shutdown => {}
+
+            PlayerState::Exiting => {
+                if keys.just_pressed(KeyCode::Return) {
+                    *player_state = PlayerState::Shutdown;
+                } else if keys.just_pressed(KeyCode::Escape) {
+                    *player_state = PlayerState::Idle;
+                }
+            }
+            PlayerState::Ascended => {
+                if keys.just_pressed(KeyCode::Space) {
+                    *player_state = PlayerState::Help;
+                    procgen_events.send(ProcGenEvent::RestartWorld);
+                    turn_counter.0 = 0;
+                }
+            }
+
             PlayerState::Idle if currently_selected_item.0.is_some() => {
                 currently_selected_item.0 = None;
             }
@@ -167,6 +209,8 @@ pub fn character_controls(
                     {
                         taken_action = Some(ActionEvent(a_move(entity, direction)));
                     }
+                } else if keys.just_pressed(KeyCode::Escape) {
+                    *player_state = PlayerState::Exiting;
                 } else if keys.just_pressed(KeyCode::Comma) || keys.just_pressed(KeyCode::Space) {
                     let items = free_item_query
                         .iter()
@@ -186,10 +230,44 @@ pub fn character_controls(
                     *player_state = PlayerState::ItemSelected { index: item_key };
                 } else if keys.just_pressed(KeyCode::H) {
                     *player_state = PlayerState::Help;
+                } else if keys.just_pressed(KeyCode::F) {
+                    taken_action = Some(ActionEvent(a_focus(entity)));
+                } else if keys.just_pressed(KeyCode::M) && depth.0 < 5 {
+                    *player_state = PlayerState::SacrificeWarning;
+                }
+            }
+
+            PlayerState::SacrificeWarning => {
+                if keys.just_pressed(KeyCode::Y) {
+                    *player_state = PlayerState::Sacrifice;
+                } else if keys.just_pressed(KeyCode::N) {
+                    *player_state = PlayerState::Idle;
+                }
+            }
+
+            PlayerState::Sacrifice => {
+                history.add("You descend...");
+                history.add("---------------------------------");
+                procgen_events.send(ProcGenEvent::NextLevel);
+
+                taken_action = Some(ActionEvent(a_descend()));
+                depth.0 += 1;
+                *player_state = PlayerState::Descended;
+            }
+
+            PlayerState::Descended => {
+                if keys.just_pressed(KeyCode::Space) || keys.just_pressed(KeyCode::Escape) {
+                    *player_state = PlayerState::Idle;
                 }
             }
 
             PlayerState::Dead => {
+                if keys.just_pressed(KeyCode::Space) {
+                    *player_state = PlayerState::Help;
+                    procgen_events.send(ProcGenEvent::RestartWorld);
+                    turn_counter.0 = 0;
+                }
+
                 taken_action = Some(ActionEvent(a_wait()));
                 turn_order.pushback(100);
             }
@@ -331,6 +409,7 @@ pub fn character_controls(
 pub struct SvarogPlayerPlugin;
 impl Plugin for SvarogPlayerPlugin {
     fn build(&self, bevy: &mut App) {
+        bevy.init_resource::<PlayerState>();
         bevy.add_systems(
             Update,
             character_controls
@@ -338,5 +417,6 @@ impl Plugin for SvarogPlayerPlugin {
                 .before(CameraUpdateSystem)
                 .run_if(in_state(GameStates::Game)),
         );
+        bevy.add_systems(PostUpdate, on_shutdown);
     }
 }

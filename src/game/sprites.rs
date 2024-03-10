@@ -32,8 +32,13 @@ pub const BONES: Tile = Tile(15, 0);
 pub const INTERIOR_FLOOR1: Tile = Tile(0, 16);
 pub const INTERIOR_FLOOR2: Tile = Tile(0, 17);
 
-pub const OLD_MAGE: Tile = Tile(2, 24);
-pub const EMO_MAGE: Tile = Tile(1, 26);
+pub const GOBLIN: Tile = Tile(2, 25);
+pub const ORC: Tile = Tile(2, 26);
+pub const EVOKER: Tile = Tile(0, 24);
+pub const BAT: Tile = Tile(8, 26);
+pub const THAUMATURGE: Tile = Tile(2, 24);
+pub const EMO_MAGE: Tile = Tile(1, 30);
+pub const HEALER: Tile = Tile(1, 26);
 
 pub const SCROLL1: Tile = Tile(15, 34);
 pub const SCROLL2: Tile = Tile(15, 33);

@@ -31,7 +31,7 @@ impl Action for PickupAction {
         let mut read_system_state = SystemState::<(
             Query<(&WorldEntity, Option<&mut CarriedItems>)>,
             Query<(&Item, &mut Visibility)>,
-            Query<(&ClearLevel)>,
+            Query<&ClearLevel>,
             ResMut<HistoryLog>,
         )>::new(world);
 

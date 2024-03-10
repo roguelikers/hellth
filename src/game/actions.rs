@@ -3,6 +3,7 @@ pub mod break_action;
 pub mod cast_spell_action;
 pub mod consume_action;
 pub mod death_action;
+pub mod descend_action;
 pub mod destroy_action;
 pub mod drop_action;
 pub mod equip_action;
@@ -28,9 +29,9 @@ use super::character::CharacterStat;
 
 pub use {
     ai_think_action::a_think, break_action::a_break, cast_spell_action::a_cast_spell,
-    consume_action::a_consume, death_action::a_death, destroy_action::a_destroy,
-    drop_action::a_drop, equip_action::a_equip, flee_action::a_flee, fly_action::a_fly,
-    focus_action::a_focus, hit_action::a_hit, leave_bones_action::a_leave_bones,
+    consume_action::a_consume, death_action::a_death, descend_action::a_descend,
+    destroy_action::a_destroy, drop_action::a_drop, equip_action::a_equip, flee_action::a_flee,
+    fly_action::a_fly, focus_action::a_focus, hit_action::a_hit, leave_bones_action::a_leave_bones,
     melee_attack_action::a_melee, move_action::a_move, pickup_action::a_pickup,
     random_walk_action::a_random_walk, switch_behaviour_action::a_behave, throw_action::a_throw,
     track_action::a_track, unequip_action::a_unequip, wait_action::a_wait,

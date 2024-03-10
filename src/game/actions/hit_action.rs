@@ -1,7 +1,10 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use super::*;
-use crate::game::{character::Character, feel::Random, health::Health, procgen::PlayerMarker};
+use crate::game::{
+    character::Character, feel::Random, health::Health, inventory::EquippedItems,
+    procgen::PlayerMarker,
+};
 use bevy_trauma_shake::Shake;
 
 #[derive(Debug)]
@@ -21,7 +24,7 @@ impl Action for HitAction {
 
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
-            Query<(&mut Health, &mut Character)>,
+            Query<(&mut Health, &mut Character, Option<&mut EquippedItems>)>,
             Query<&PlayerMarker>,
             Query<&mut Shake>,
             ResMut<Random>,
@@ -30,14 +33,18 @@ impl Action for HitAction {
             read_system_state.get_mut(world);
 
         let attacker_strength = {
-            if let Ok((_, attacker_character)) = world_health_query.get(self.attacker) {
+            if let Ok((_, attacker_character, _attacker_equipped)) =
+                world_health_query.get(self.attacker)
+            {
                 attacker_character.strength
             } else {
                 1
             }
         };
 
-        let Ok((mut target_health, mut character)) = world_health_query.get_mut(self.target) else {
+        let Ok((mut target_health, mut character, _target_equipped)) =
+            world_health_query.get_mut(self.target)
+        else {
             return vec![];
         };
 

@@ -6,7 +6,7 @@ use crate::game::{
     character::{Character, CharacterStat},
     grid::{Grid, WorldEntity},
     history::HistoryLog,
-    inventory::{CarriedItems, CarriedMarker, Item},
+    inventory::{CarriedItems, CarriedMarker, EquippedItems, Item},
     procgen::ClearLevel,
     turns::TurnTaker,
 };
@@ -32,7 +32,15 @@ impl Action for ThrowAction {
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
             Query<(&mut WorldEntity, &mut Transform), Without<TurnTaker>>,
-            Query<(&WorldEntity, Option<&Character>, Option<&mut CarriedItems>), With<TurnTaker>>,
+            Query<
+                (
+                    &WorldEntity,
+                    Option<&Character>,
+                    Option<&mut CarriedItems>,
+                    Option<&EquippedItems>,
+                ),
+                With<TurnTaker>,
+            >,
             Query<(&Item, &mut Visibility)>,
             ResMut<HistoryLog>,
             Res<Grid>,
@@ -41,7 +49,7 @@ impl Action for ThrowAction {
         let (mut transforms, mut world_entities, mut items, mut log, grid) =
             read_system_state.get_mut(world);
 
-        let Ok((person_entity, Some(character), Some(mut person_carrying))) =
+        let Ok((person_entity, Some(character), Some(mut person_carrying), Some(equipped))) =
             world_entities.get_mut(self.who)
         else {
             return vec![];
@@ -66,6 +74,11 @@ impl Action for ThrowAction {
         *transform = new_transform;
 
         if let Some(carried_item) = person_carrying.0.iter().position(|i| *i == item_entity) {
+            if equipped.0.contains(&item_entity) {
+                log.add("Cannot throw equipped item. Unequip first.");
+                return vec![];
+            }
+
             person_carrying.0.remove(carried_item);
             *vis = Visibility::Visible;
             log.add(&format!("{} threw {}.", person_entity.name, item.name));
@@ -75,19 +88,19 @@ impl Action for ThrowAction {
         let a = person_entity.position;
         let b = self.wher;
 
+        let max_dist = (((str.min(5) + will.min(5)) as f32) * 2.5).ceil() as usize + 1;
+        let bres = Bresenham::new((a.x as isize, a.y as isize), (b.x as isize, b.y as isize));
+        let mut path = bres
+            .into_iter()
+            .map(|(x, y)| IVec2::new(x as i32, y as i32))
+            .collect::<Vec<_>>();
+        path.push(b);
+        path.truncate(max_dist);
+
         for marked in mark_carried {
             world.entity_mut(marked).remove::<CarriedMarker>();
             world.entity_mut(marked).insert(ClearLevel);
         }
-
-        let max_dist = (((str.min(5) + will.min(5)) as f32) * 1.5).ceil() as usize;
-        let b = Bresenham::new((a.x as isize, a.y as isize), (b.x as isize, b.y as isize));
-        let mut path = b
-            .into_iter()
-            .map(|(x, y)| IVec2::new(x as i32, y as i32))
-            .collect::<Vec<_>>();
-        path.truncate(max_dist);
-
-        vec![a_fly(self.what, path[1..].to_vec())]
+        vec![a_fly(self.what, path[1..].to_vec(), false)]
     }
 }

@@ -8,14 +8,15 @@ use bevy_mod_picking::{
 use imgui::{DrawListMut, ImColor32, StyleColor, Ui};
 
 use super::{
-    character::{Character, CharacterStat},
+    character::{self, Character, CharacterStat},
     grid::{Grid, WorldData, WorldEntity, WorldEntityColor},
     health::Health,
     history::HistoryLog,
     inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
     magic::Magic,
     player::PlayerState,
-    procgen::PlayerMarker,
+    procgen::{MapRadius, PlayerMarker},
+    turns::TurnCounter,
     DebugFlag, GameStates,
 };
 
@@ -461,15 +462,11 @@ fn show_inventory(
         });
 }
 
-fn show_throw_tip(mut context: NonSendMut<ImguiContext>, player_state: Query<&PlayerState>) {
-    let Ok(player_state) = player_state.get_single() else {
-        return;
-    };
-
+fn show_throw_tip(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerState>) {
     let ui = context.ui();
 
     if matches!(
-        player_state,
+        *player_state,
         PlayerState::PreparingToThrow {
             entity: _,
             item_entity: _
@@ -494,28 +491,258 @@ fn show_throw_tip(mut context: NonSendMut<ImguiContext>, player_state: Query<&Pl
     }
 }
 
-fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Query<&PlayerState>) {
-    let Ok(player_state) = player_state.get_single() else {
+fn show_sacrifice_warning(
+    mut context: NonSendMut<ImguiContext>,
+    player_character: Query<&Character, With<PlayerMarker>>,
+    player_state: Res<PlayerState>,
+) {
+    let Ok(player_character) = player_character.get_single() else {
         return;
     };
 
     let ui = context.ui();
 
-    if matches!(player_state, PlayerState::Help) {
+    if matches!(*player_state, PlayerState::SacrificeWarning) {
         let [w, _] = ui.io().display_size;
 
-        ui.window("Tip")
+        ui.window("Sacrifice")
             .position_pivot([0.5, 0.0])
             .position([w / 2.0, 100.0], imgui::Condition::Always)
-            .size([600.0, 500.0], imgui::Condition::Always)
+            .size([600.0, 200.0], imgui::Condition::Always)
             .resizable(false)
             .collapsible(false)
             .no_decoration()
             .bg_alpha(1.0)
             .build(|| {
-                let [w, _] = ui.calc_text_size("HELP");
+                let [w, _] = ui.calc_text_size("MAKE SACRIFICE?");
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
-                ui.text("HELP");
+                ui.text("MAKE SACRIFICE?");
+
+                ui.set_cursor_pos([25.0, 40.0]);
+
+                ui.text_wrapped("Making a sacrifice exhudes a heavy toll. NINE is the number by which you pay, or the bounty is collected from thy undying bones.");
+
+                let (stat, val) = player_character.get_strongest_stat();
+                let mut message = vec![];
+                if val < 9 {
+                    message.push("This body of thine will suffer if you attempt this now.".to_string());
+
+                    if val > 7 {
+                        let stat_name = match stat {
+                            CharacterStat::STR => "strength",
+                            CharacterStat::ARC => "arcana",
+                            CharacterStat::INT => "intelligence",
+                            CharacterStat::WIS => "wisdom",
+                            CharacterStat::WIL => "willpower",
+                            CharacterStat::AGI => "agility",
+                        };
+                        message.push(format!("There are slivers of greatness in your {}, however. Look deeper into it. Let others sacrifice onto you before you approach again.", stat_name).to_string());
+                    }
+                }
+
+                ui.text_wrapped("Are you sure you want to proceed?");
+
+                let [w, _] = ui.calc_text_size("[Y]es");
+                ui.set_cursor_pos([200.0 - w * 0.5, 150.0]);
+                ui.text("[Y]es");
+
+                let [w, _] = ui.calc_text_size("[N]o");
+                ui.set_cursor_pos([400.0 - w * 0.5, 150.0]);
+                ui.text("[N]o");
+
+            });
+    }
+}
+
+fn show_exit(
+    mut context: NonSendMut<ImguiContext>,
+    player_character: Query<&Character, With<PlayerMarker>>,
+    player_state: Res<PlayerState>,
+) {
+    let ui = context.ui();
+
+    if matches!(*player_state, PlayerState::Exiting) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Exit")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 200.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("Exit game?");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("Exit game?");
+
+                let [w, _] = ui.calc_text_size(
+                    "You will lose all progress if you quit. Do you want to proceed?",
+                );
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
+                ui.text_wrapped("You will lose all progress if you quit. Do you want to proceed?");
+
+                let [w, _] = ui.calc_text_size("[Return/Enter] Yes");
+                ui.set_cursor_pos([200.0 - w * 0.5, 150.0]);
+                ui.text("[Return/Enter] Yes");
+
+                let [w, _] = ui.calc_text_size("[Escape again] No");
+                ui.set_cursor_pos([400.0 - w * 0.5, 150.0]);
+                ui.text("[Escape again] No");
+            });
+    }
+}
+
+use crate::game::procgen::LevelDepth;
+
+fn show_descend_info(
+    mut context: NonSendMut<ImguiContext>,
+    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
+    player_state: Res<PlayerState>,
+    depth: Res<LevelDepth>,
+) {
+    let Ok(player_character) = player_character.get_single() else {
+        return;
+    };
+
+    let ui = context.ui();
+
+    if matches!(*player_state, PlayerState::Descended) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Descent")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 110.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("YOU HAVE DESCENDED.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("YOU HAVE DESCENDED.");
+
+                let text = format!(
+                    "You have descended into level {}. Stand proud, if you can stand.",
+                    depth.0
+                );
+                let [w, _] = ui.calc_text_size(&text);
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
+                ui.text(&text);
+
+                let [w, _] = ui.calc_text_size("Press SPACE to continue.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 80.0]);
+                ui.text("Press SPACE to continue.");
+            });
+    }
+}
+
+fn show_ascended_status(
+    mut context: NonSendMut<ImguiContext>,
+    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
+    player_state: Res<PlayerState>,
+    depth: Res<LevelDepth>,
+    turn_counter: Res<TurnCounter>,
+) {
+    let Ok(player_character) = player_character.get_single() else {
+        return;
+    };
+
+    let ui = context.ui();
+
+    if matches!(*player_state, PlayerState::Ascended) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("CONGRATULATIONS")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 110.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("CONGRATULATIONS!");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("CONGRATULATIONS");
+
+                let text = format!("You have beaten the Healer in {} turns.", turn_counter.0);
+                let [w, _] = ui.calc_text_size(&text);
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
+                ui.text(&text);
+
+                let [w, _] = ui.calc_text_size("Press SPACE to restart.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 80.0]);
+                ui.text("Press SPACE to restart.");
+            });
+    }
+}
+
+fn show_dead_screen(
+    mut context: NonSendMut<ImguiContext>,
+    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
+    player_state: Res<PlayerState>,
+    depth: Res<LevelDepth>,
+    turn_counter: Res<TurnCounter>,
+) {
+    let Ok(player_character) = player_character.get_single() else {
+        return;
+    };
+
+    let ui = context.ui();
+
+    if matches!(*player_state, PlayerState::Dead) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Ded")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 110.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("You died.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("You died.");
+
+                let text = format!(
+                    "You have been killed after {} turns on level {}.",
+                    turn_counter.0, depth.0
+                );
+
+                let [w, _] = ui.calc_text_size(&text);
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
+                ui.text(&text);
+
+                let [w, _] = ui.calc_text_size("Press SPACE to restart.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 80.0]);
+                ui.text("Press SPACE to restart.");
+            });
+    }
+}
+
+fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerState>) {
+    let ui = context.ui();
+
+    if matches!(*player_state, PlayerState::Help) {
+        let [w, _] = ui.io().display_size;
+
+        ui.window("Tip")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 370.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size("HOW TO");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
+                ui.text("HOW TO");
 
                 ui.text("Hark thee!");
                 ui.spacing();
@@ -530,14 +757,17 @@ fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Query<&PlayerS
                 ui.text_wrapped("Wait Turn: X");
                 ui.text_wrapped("Cancel: Escape");
                 ui.text_wrapped("Pickup: Space");
-                ui.text_wrapped("Pray: P");
+                ui.text_wrapped("Make Sacrifice (attempt to descend): M");
                 ui.text_wrapped("Items: 1-9 to start interaction");
                 ui.separator();
                 let mut message = vec!["This challenge will see you use and consume artifacts that inflict upon your health strange glyphs to affect your state.".to_string()];
                 message.push("It shall change how you perceive things. It shall make you wonder about your choices. Remember the shape of your soul and track it carefully.".to_string());
-                message.push("Remember that in this place NINE is the strength with which devotion hits when you pray. Be wary of what you ask for. Remember it in your BONES.".to_string());
+                message.push("Remember that in this place NINE is the strength with which devotion accepts a sacrifice. Be wary of what you ask for. Remember it in your BONES.".to_string());
                 ui.text_wrapped(message.join(" "));
                 ui.spacing();
+                let [w, _] = ui.calc_text_size("Press SPACE to continue.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 350.0]);
+                ui.text("Press SPACE to continue.");
             });
     }
 }
@@ -628,7 +858,7 @@ fn show_status_for_world_entities(
                     let p: Vec2 = ui.window_pos().into();
 
                     draw_hp_bar(&draw, p, other_health, &magic, &health_settings);
-                    if player_char.wisdom > 5 && player_char.arcana > 5 {
+                    if player_char.wisdom >= 5 && player_char.arcana >= 5 {
                         draw_npc_stats(
                             &draw,
                             &magic,
@@ -655,10 +885,16 @@ impl Plugin for SvarogUIPlugin {
                 show_status_for_world_entities,
                 show_inventory,
                 show_log,
-                show_help,
                 show_throw_tip,
+                show_sacrifice_warning,
+                show_descend_info,
+                show_dead_screen,
+                show_ascended_status,
+                show_exit,
                 draw_health_settings,
+                show_help,
             )
+                .chain()
                 .run_if(in_state(GameStates::Game)),
         );
 

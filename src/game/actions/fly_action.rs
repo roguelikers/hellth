@@ -13,11 +13,15 @@ use super::{AbstractAction, Action, ActionResult};
 pub struct FlyAction {
     pub what: Entity,
     pub path: Vec<IVec2>,
+    pub already_flying: bool,
 }
 
-pub fn a_fly(what: Entity, path: Vec<IVec2>) -> AbstractAction {
-    println!("FLY {:?} {:?}", what, path);
-    Box::new(FlyAction { what, path })
+pub fn a_fly(what: Entity, path: Vec<IVec2>, already_flying: bool) -> AbstractAction {
+    Box::new(FlyAction {
+        what,
+        path,
+        already_flying,
+    })
 }
 
 impl Action for FlyAction {
@@ -39,13 +43,19 @@ impl Action for FlyAction {
             return vec![];
         };
 
-        if let Some(v) = self.path.first() {
-            if world_data.blocking.contains_key(v) {
-                return vec![a_break(self.what)];
-            }
+        if self.already_flying && world_data.blocking.contains_key(&item_world.position) {
+            // log.add(&format!(
+            //     "HITTING BLOCKING {:?} AT {:?}",
+            //     world_data.blocking.get(&item_world.position),
+            //     item_world.position
+            // ));
+            return vec![a_break(self.what)];
+        }
 
+        if let Some(v) = self.path.first() {
             if world_data.solid.contains(v) {
-                return vec![a_break(self.what)];
+                //log.add(&format!("HITTING SOLID AT {:?}", &item_world.position,));
+                return vec![];
             }
 
             item_world.position = *v;
@@ -53,9 +63,10 @@ impl Action for FlyAction {
             new_transform.translation.z = transform.translation.z;
             *transform = new_transform;
 
-            vec![a_fly(self.what, self.path[1..].to_vec())]
+            // log.add(&format!("FLYING AT {:?}", &item_world.position,));
+            vec![a_fly(self.what, self.path[1..].to_vec(), true)]
         } else {
-            println!("NO MORE");
+            log.add("The thrown item falls down.");
             vec![a_break(self.what)]
         }
     }

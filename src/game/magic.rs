@@ -90,7 +90,11 @@ fn knowledge_checker(
             }
         }
 
-        if (player.wisdom > 3 && player.arcana > 3)
+        if (player.wisdom > 4 && player.arcana > 4)
+            && (old_state.wisdom <= 4 || old_state.arcana <= 4)
+        {
+            log.add("You have gained insight into some aspects of your enemies.");
+        } else if (player.wisdom > 3 && player.arcana > 3)
             && (old_state.wisdom <= 3 || old_state.arcana <= 3)
         {
             player.learned.insert(CharacterStat::WIS);

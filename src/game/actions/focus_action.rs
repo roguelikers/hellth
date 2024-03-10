@@ -4,7 +4,6 @@ use crate::game::{
     character::{Character, CharacterStat},
     grid::WorldEntity,
     history::HistoryLog,
-    procgen::PlayerMarker,
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -54,7 +53,7 @@ impl Action for FocusAction {
 
         focus.0 += get_focus_based_on_arc(char.arcana);
         if entity.is_player {
-            log.add("You focus. You can reach deeper into your soul.");
+            log.add("You focus. You can implant consumed thaumaturgy deeper into your soul.");
         } else {
             log.add(&format!("{} focuses.", entity.name));
         }
