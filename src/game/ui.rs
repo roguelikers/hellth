@@ -327,21 +327,9 @@ fn draw_hp_bar(
 
                 #[allow(clippy::comparison_chain)]
                 if val < 0 {
-                    draw.add_text([ce.x, ce.y], ImColor32::from_rgb(255, 255, 255), "-");
-                    // draw.add_triangle([e1.x, e1.y], [ga.x, ga.y], [c2.x, c2.y], white)
-                    //     .filled(true)
-                    //     .build();
-                    // draw.add_triangle([e2.x, e2.y], [de.x, de.y], [c2.x, c2.y], white)
-                    //     .filled(true)
-                    //     .build();
+                    draw.add_text([ce.x, ce.y], ImColor32::from_rgb(255, 255, 255), "v");
                 } else if val > 0 {
-                    draw.add_text([ce.x, ce.y], ImColor32::from_rgb(255, 255, 255), "+");
-                    // draw.add_triangle([al.x, al.y], [c1.x, c1.y], [d1.x, d1.y], white)
-                    //     .filled(true)
-                    //     .build();
-                    // draw.add_triangle([c1.x, c1.y], [be.x, be.y], [d2.x, d2.y], white)
-                    //     .filled(true)
-                    //     .build();
+                    draw.add_text([ce.x, ce.y], ImColor32::from_rgb(255, 255, 255), "^");
                 }
             } else {
                 draw.add_rect(pi1, pi2, lite).filled(true).build();

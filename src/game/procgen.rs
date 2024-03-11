@@ -420,9 +420,14 @@ pub fn generate_level(
             for _ in 0..rng.gen(0..(2 + depth.0 as i32).clamp(2, 4)) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
+                let mut attempt = 0;
                 while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
                     power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
                     stat = rng.from(&stats);
+                    attempt += 1;
+                    if attempt > 10 {
+                        break;
+                    }
                 }
 
                 builder = builder.with_stat(stat, power);
@@ -447,9 +452,14 @@ pub fn generate_level(
             for _ in 0..rng.gen(0..2) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
+                let mut attempt = 0;
                 while power == 0 || stat == CharacterStat::STR {
                     power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
                     stat = rng.from(&stats);
+                    attempt += 1;
+                    if attempt > 10 {
+                        break;
+                    }
                 }
 
                 builder = builder.with_stat(stat, power);
@@ -473,9 +483,14 @@ pub fn generate_level(
             for _ in 0..rng.gen(0..2) {
                 let mut stat = rng.from(&stats);
                 let mut power = 0;
+                let mut attempt = 0;
                 while power == 0 || stat == CharacterStat::AGI {
                     power = rng.gen((-2 - depth.0 as i32)..(2 + depth.0 as i32));
                     stat = rng.from(&stats);
+                    attempt += 1;
+                    if attempt > 10 {
+                        break;
+                    }
                 }
 
                 builder = builder.with_stat(stat, power);

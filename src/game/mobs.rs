@@ -223,16 +223,15 @@ pub fn make_healer(
     grid: &Res<Grid>,
     place: IVec2,
 ) {
-    let mut char = Character::default();
-    char.arcana += 3;
-    char.wisdom += 2;
-    char.intelligence += rng.gen(8..9);
-    char.strength = 2;
-    char.agility = 2;
-
-    if rng.coin() {
-        char.strength += rng.gen(-1..1);
-    }
+    let mut char = Character {
+        strength: 6,
+        arcana: 5,
+        intelligence: rng.gen(8..9),
+        wisdom: 6,
+        willpower: 10,
+        agility: rng.gen(8..9),
+        ..Default::default()
+    };
 
     commands
         .spawn(WorldEntityBundle::new(
