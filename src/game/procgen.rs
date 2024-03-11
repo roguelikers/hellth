@@ -222,6 +222,7 @@ pub fn generate_level(
 
                             if passability == Passability::Blocking {
                                 map.solid.insert(pos);
+                                interiors.remove(&pos);
                             } else {
                                 interiors.insert(pos);
                             }
@@ -334,6 +335,7 @@ pub fn generate_level(
                             },
                         });
                         okay.remove(pos);
+                        interiors.remove(pos);
                         map.solid.insert(*pos);
                     }
                 }

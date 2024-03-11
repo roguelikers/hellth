@@ -110,8 +110,16 @@ fn make_item(char: &Character) -> Vec<(CharacterStat, i32)> {
     for stat in &stats {
         let val = char[*stat];
         match val {
-            x if x > 3 => result.push((*stat, 1)),
-            x if x < 3 => result.push((*stat, -1)),
+            x if x > 3 => {
+                for _ in 0..(x - 3) {
+                    result.push((*stat, 1))
+                }
+            }
+            x if x < 3 => {
+                for _ in 0..(3 - x) {
+                    result.push((*stat, -1))
+                }
+            }
             _ => {}
         };
     }

@@ -3,6 +3,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use crate::game::{
     character::{Character, CharacterStat},
     grid::WorldEntity,
+    health::Health,
     history::HistoryLog,
 };
 
@@ -42,21 +43,29 @@ impl Action for FocusAction {
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
             ResMut<HistoryLog>,
-            Query<(&mut Character, &WorldEntity, &mut Focus)>,
+            Query<(&mut Character, &WorldEntity, &mut Focus, &Health)>,
         )>::new(world);
 
         let (mut log, mut world_entity_query) = read_system_state.get_mut(world);
 
-        let Ok((char, entity, mut focus)) = world_entity_query.get_mut(self.who) else {
+        let Ok((char, entity, mut focus, health)) = world_entity_query.get_mut(self.who) else {
             return vec![];
         };
 
         focus.0 += get_focus_based_on_arc(char.arcana);
+        if focus.0 >= health.hitpoints.len() as u32 {
+            focus.0 = health.hitpoints.len() as u32;
+        }
         if entity.is_player {
-            log.add("You focus. You can implant consumed thaumaturgy deeper into your soul.");
+            if focus.0 > 0 {
+                log.add(&format!("Your focus is raised to {}.", focus.0));
+            } else {
+                log.add("You focus. You can implant consumed thaumaturgy deeper into your soul.");
+            }
         } else {
             log.add(&format!("{} focuses.", entity.name));
         }
+
         vec![]
     }
 }

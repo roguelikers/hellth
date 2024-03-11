@@ -12,13 +12,15 @@ use super::{
     grid::{Grid, WorldData, WorldEntity, WorldEntityColor},
     health::Health,
     history::HistoryLog,
-    inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
+    inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions, ItemType},
     magic::Magic,
     player::{Achievements, PlayerState},
     procgen::PlayerMarker,
     turns::TurnCounter,
     DebugFlag, GameStates,
 };
+
+use crate::game::magic::Focus;
 
 #[derive(Event, Debug)]
 pub struct ShowEntityDetails(Entity, f32);
@@ -195,6 +197,8 @@ fn draw_player_stats(draw: &DrawListMut, magic: &Res<Magic>, p: Vec2, char: &mut
         draw_stat(draw, magic, p, stat, val, learned);
         p.x += 50.0;
     }
+
+    
 }
 
 fn draw_npc_stats(
@@ -258,12 +262,16 @@ fn draw_hp_bar(
     p: Vec2,
     health: &Health,
     magic: &Res<Magic>,
-    char_settings: &Res<CharacterSettings>,
+    char_settings: &Res<CharacterSettings>, 
+    focus: Option<u32>, 
+    item: Option<&Item>,
 ) {
     let padding = char_settings.padding;
     let width = char_settings.width;
     let height = char_settings.height;
     let offset = char_settings.offset;
+    let white = ImColor32::from_rgb(207, 198, 184);
+    let lite = ImColor32::from_rgb(122, 68, 74);
 
     for i in 0..health.size {
         let p1 = [
@@ -286,26 +294,9 @@ fn draw_hp_bar(
             p[1] + offset.y - char_settings.inside_padding + height,
         ];
 
-        // let w = width - char_settings.inside_padding;
-        // let h = height - char_settings.inside_padding;
         let al = Vec2::new(pi1[0], pi1[1]) - Vec2::new(0., 1.33);
-        // let de = Vec2::new(pi2[0], pi2[1]) + Vec2::new(0., 1.33);
         let ce = Vec2::new(al.x + width * 0.15, al.y + height * 0.25);
-        // let be = al + Vec2::new(width - 2. * char_settings.inside_padding, 0.);
-        // let ga = de - Vec2::new(width - 2. * char_settings.inside_padding, 0.);
 
-        // //let ep = Vec2::new((al.x + be.x) * 0.5, al.y + h * 0.33);
-        // //let pi = Vec2::new((al.x + be.x) * 0.5, ga.y - h * 0.33);
-        // let c1 = Vec2::new((al.x + be.x) * 0.5, al.y);
-        // let c2 = Vec2::new((ga.x + de.x) * 0.5, ga.y);
-        // let d1 = Vec2::new(al.x, al.y + h * 0.33);
-        // let d2 = Vec2::new(be.x, al.y + h * 0.33);
-        // let e1 = Vec2::new(al.x, al.y + h * 0.66);
-        // let e2 = Vec2::new(be.x, al.y + h * 0.66);
-
-        let white = ImColor32::from_rgb(207, 198, 184);
-        //let lite = ImColor32::from_rgb(227, 18, 45);
-        let lite = ImColor32::from_rgb(122, 68, 74);
         draw.add_text(
             [
                 p[0] + offset.x + char_settings.text_offset.x,
@@ -341,6 +332,63 @@ fn draw_hp_bar(
         }
 
         draw.add_rect(p1, p2, white).filled(false).build();
+    }
+
+    if let Some(focus) = focus {
+        if let Some(item) = item {
+            for (index, (stat, val)) in item.equip_stat_changes.iter().enumerate() {
+                let i = health.hitpoints.len() - 1 - index - focus as usize;
+                let p1 = [
+                    p[0] + i as f32 * (width + padding) + offset.x,
+                    p[1] + offset.y + height + 4.0,
+                ];
+    
+                let p2 = [
+                    p[0] + i as f32 * (width + padding) + offset.x + width,
+                    p[1] + offset.y + height + 7.0,
+                ];
+
+                let color = magic.color_bindings[stat];
+                draw.add_rect(p1, p2, ImColor32::from_rgb_f32s(color.r(), color.g(), color.b())).filled(true).build();
+    
+                let p1 = [
+                    p[0] + i as f32 * (width + padding) + offset.x - 1.0,
+                    p[1] + offset.y + height + 1.0,
+                ];
+    
+                let p2 = [
+                    p[0] + i as f32 * (width + padding) + offset.x + width + 1.0,
+                    p[1] + offset.y + height + 8.0,
+                ];
+    
+                draw.add_rect(p1, p2, ImColor32::from_rgb(0, 0, 0)).filled(false).build();
+            }
+        } else {
+            let i = health.hitpoints.len() - 1 - focus as usize;
+            let p1 = [
+                p[0] + i as f32 * (width + padding) + offset.x,
+                p[1] + offset.y + height + 4.0,
+            ];
+
+            let p2 = [
+                p[0] + i as f32 * (width + padding) + offset.x + width,
+                p[1] + offset.y + height + 7.0,
+            ];
+
+            draw.add_rect(p1, p2, ImColor32::from_rgb(244, 180, 27)).filled(true).build();
+
+            let p1 = [
+                p[0] + i as f32 * (width + padding) + offset.x - 1.0,
+                p[1] + offset.y + height + 1.0,
+            ];
+
+            let p2 = [
+                p[0] + i as f32 * (width + padding) + offset.x + width + 1.0,
+                p[1] + offset.y + height + 8.0,
+            ];
+
+            draw.add_rect(p1, p2, ImColor32::from_rgb(0, 0, 0)).filled(false).build();
+        }
     }
 }
 
@@ -790,13 +838,16 @@ fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
         });
 }
 
+#[allow(clippy::too_many_arguments)]
 fn show_status_for_world_entities(
-    mut player_entity: Query<(&WorldEntity, &mut Character, &Health), With<PlayerMarker>>,
+    mut player_entity: Query<(&WorldEntity, &mut Character, &Health, &CarriedItems, &Focus), With<PlayerMarker>>,
     world_entities: Query<(&WorldEntity, &Character, &Health), Without<PlayerMarker>>,
     grid: Option<Res<Grid>>,
     world: Res<WorldData>,
+    items: Query<&Item>,
     health_settings: Res<CharacterSettings>,
     magic: Res<Magic>,
+    player_state: Res<PlayerState>,
     mut context: NonSendMut<ImguiContext>,
 ) {
     let Some(grid) = grid else {
@@ -807,7 +858,7 @@ fn show_status_for_world_entities(
 
     let [width, _height] = ui.io().display_size;
 
-    let Ok((player, mut player_char, player_health)) = player_entity.get_single_mut() else {
+    let Ok((player, mut player_char, player_health, inventory, focus)) = player_entity.get_single_mut() else {
         return;
     };
 
@@ -825,12 +876,31 @@ fn show_status_for_world_entities(
             ui.separator();
             let p: Vec2 = ui.window_pos().into();
 
-            draw_hp_bar(&draw, p, player_health, &magic, &health_settings);
+            let mut bad = true;
+            #[allow(clippy::single_match)]
+            match *player_state {
+                PlayerState::ItemSelected { index } => {
+                    if let Some(item_entity) = inventory.0.get(index - 1) {
+                        if let Ok(item) = items.get(*item_entity) {
+                            if item.item_type == ItemType::Artifact {
+                                draw_hp_bar(&draw, p, player_health, &magic, &health_settings, Some(focus.0), Some(item));
+                                bad = false;
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+
+            if bad {
+                draw_hp_bar(&draw, p, player_health, &magic, &health_settings, Some(focus.0), None);
+            }
+
             draw_player_stats(
                 &draw,
                 &magic,
                 p + Vec2::new(health_settings.stat_left, health_settings.stat_top),
-                &mut player_char,
+                &mut player_char
             );
         });
 
@@ -850,7 +920,7 @@ fn show_status_for_world_entities(
                     ui.text(&other_entity.name);
                     let p: Vec2 = ui.window_pos().into();
 
-                    draw_hp_bar(&draw, p, other_health, &magic, &health_settings);
+                    draw_hp_bar(&draw, p, other_health, &magic, &health_settings, None, None);
                     if player_char.wisdom >= 5 && player_char.arcana >= 5 {
                         draw_npc_stats(
                             &draw,
