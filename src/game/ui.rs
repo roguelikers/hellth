@@ -14,7 +14,7 @@ use super::{
     history::HistoryLog,
     inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
     magic::Magic,
-    player::PlayerState,
+    player::{Achievements, PlayerState},
     procgen::PlayerMarker,
     turns::TurnCounter,
     DebugFlag, GameStates,
@@ -652,6 +652,7 @@ fn show_ascended_status(
     mut context: NonSendMut<ImguiContext>,
     player_state: Res<PlayerState>,
     turn_counter: Res<TurnCounter>,
+    achievements: Res<Achievements>,
 ) {
     
     let ui = context.ui();
@@ -672,11 +673,14 @@ fn show_ascended_status(
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 10.0]);
                 ui.text("CONGRATULATIONS");
 
-                let text = format!("You have beaten the Healer in {} turns.", turn_counter.0);
+                let octo = achievements.octopus_mode;
+                let text = format!("You have beaten the Healer in {} turns{}.", turn_counter.0, 
+                    if octo { " and sacrificed your humanity along the way" } else { " without sacrificing your bipedal nature" });
+
                 let [w, _] = ui.calc_text_size(&text);
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
                 ui.text(&text);
-
+                
                 let [w, _] = ui.calc_text_size("Press SPACE to restart.");
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 80.0]);
                 ui.text("Press SPACE to restart.");
@@ -875,6 +879,25 @@ fn show_status_for_world_entities(
     }
 }
 
+pub fn show_progress_status(mut context: NonSendMut<ImguiContext>, level_depth: Res<LevelDepth>, turn_counter: Res<TurnCounter>) {
+    let ui = context.ui();
+
+    let [width, height] = ui.io().display_size;
+
+    ui.window("PROGRESS")
+        .position_pivot([1.0, 1.0])
+        .position([width - 20.0, height - 20.0], imgui::Condition::Always)
+        .size([100.0, 50.0], imgui::Condition::Always)
+        .resizable(false)
+        .collapsible(false)
+        .no_decoration()
+        .bg_alpha(1.0)
+        .build(|| {
+            ui.text(format!("Depth: {}", level_depth.0));
+            ui.text(format!("Turns: {}", turn_counter.0));
+        });
+}
+
 pub struct SvarogUIPlugin;
 impl Plugin for SvarogUIPlugin {
     fn build(&self, bevy: &mut App) {
@@ -893,6 +916,7 @@ impl Plugin for SvarogUIPlugin {
                 show_ascended_status,
                 show_exit,
                 draw_health_settings,
+                show_progress_status,
                 show_help,
             )
                 .chain()

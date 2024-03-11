@@ -408,11 +408,17 @@ pub fn character_controls(
     }
 }
 
+#[derive(Resource, Default)]
+pub struct Achievements {
+    pub octopus_mode: bool,
+}
+
 fn octopus_tracker(
     mut equipped_query: Query<(&mut TextureAtlasSprite, &EquippedItems), With<PlayerMarker>>,
     items: Query<&Item>,
     mut log: ResMut<HistoryLog>,
     mut was_octopus: Local<bool>,
+    mut achievements: ResMut<Achievements>,
 ) {
     if *was_octopus {
         return;
@@ -437,6 +443,7 @@ fn octopus_tracker(
     if count > 2 {
         log.add("You wielded more than two weapons at once. Must be an octopus. Try doing a run without this for an achievement.");
         *was_octopus = true;
+        achievements.octopus_mode = true;
         sprite.index = OCTOPUS.into();
     }
 }
@@ -445,6 +452,7 @@ pub struct SvarogPlayerPlugin;
 impl Plugin for SvarogPlayerPlugin {
     fn build(&self, bevy: &mut App) {
         bevy.init_resource::<PlayerState>();
+        bevy.init_resource::<Achievements>();
         bevy.add_systems(
             Update,
             character_controls
