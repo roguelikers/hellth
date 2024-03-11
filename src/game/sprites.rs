@@ -39,6 +39,7 @@ pub const BAT: Tile = Tile(8, 26);
 pub const THAUMATURGE: Tile = Tile(2, 24);
 pub const EMO_MAGE: Tile = Tile(1, 30);
 pub const HEALER: Tile = Tile(1, 26);
+pub const OCTOPUS: Tile = Tile(8, 25);
 
 pub const SCROLL1: Tile = Tile(15, 34);
 pub const SCROLL2: Tile = Tile(15, 33);

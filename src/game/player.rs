@@ -19,9 +19,10 @@ use super::{
     history::HistoryLog,
     inventory::{
         CarriedItems, CarriedMarker, CurrentlySelectedItem, EquippedItems, Item, ItemActions,
+        ItemType,
     },
     procgen::{LevelDepth, PlayerMarker, ProcGenEvent},
-    sprites::TARGET,
+    sprites::{OCTOPUS, TARGET},
     turns::{TurnCounter, TurnOrder},
     GameStates,
 };
@@ -407,6 +408,39 @@ pub fn character_controls(
     }
 }
 
+fn octopus_tracker(
+    mut equipped_query: Query<(&mut TextureAtlasSprite, &EquippedItems), With<PlayerMarker>>,
+    items: Query<&Item>,
+    mut log: ResMut<HistoryLog>,
+    mut was_octopus: Local<bool>,
+) {
+    if *was_octopus {
+        return;
+    }
+
+    let Ok((mut sprite, equipped)) = equipped_query.get_single_mut() else {
+        return;
+    };
+
+    let count = equipped
+        .0
+        .iter()
+        .filter(|&item_entity| {
+            if let Ok(item) = items.get(*item_entity) {
+                item.item_type == ItemType::Weapon
+            } else {
+                false
+            }
+        })
+        .count();
+
+    if count > 2 {
+        log.add("You wielded more than two weapons at once. Must be an octopus. Try doing a run without this for an achievement.");
+        *was_octopus = true;
+        sprite.index = OCTOPUS.into();
+    }
+}
+
 pub struct SvarogPlayerPlugin;
 impl Plugin for SvarogPlayerPlugin {
     fn build(&self, bevy: &mut App) {
@@ -418,6 +452,6 @@ impl Plugin for SvarogPlayerPlugin {
                 .before(CameraUpdateSystem)
                 .run_if(in_state(GameStates::Game)),
         );
-        bevy.add_systems(PostUpdate, on_shutdown);
+        bevy.add_systems(PostUpdate, (octopus_tracker, on_shutdown));
     }
 }
