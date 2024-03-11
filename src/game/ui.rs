@@ -5,17 +5,17 @@ use bevy_mod_picking::{
     events::{Click, Pointer},
     prelude::ListenerInput,
 };
-use imgui::{DrawListMut, ImColor32, StyleColor, Ui};
+use imgui::{DrawListMut, ImColor32, StyleColor};
 
 use super::{
-    character::{self, Character, CharacterStat},
+    character::{ Character, CharacterStat},
     grid::{Grid, WorldData, WorldEntity, WorldEntityColor},
     health::Health,
     history::HistoryLog,
     inventory::{CarriedItems, CurrentlySelectedItem, EquippedItems, Item, ItemActions},
     magic::Magic,
     player::PlayerState,
-    procgen::{MapRadius, PlayerMarker},
+    procgen::PlayerMarker,
     turns::TurnCounter,
     DebugFlag, GameStates,
 };
@@ -289,7 +289,7 @@ fn draw_hp_bar(
         // let w = width - char_settings.inside_padding;
         // let h = height - char_settings.inside_padding;
         let al = Vec2::new(pi1[0], pi1[1]) - Vec2::new(0., 1.33);
-        let de = Vec2::new(pi2[0], pi2[1]) + Vec2::new(0., 1.33);
+        // let de = Vec2::new(pi2[0], pi2[1]) + Vec2::new(0., 1.33);
         let ce = Vec2::new(al.x + width * 0.15, al.y + height * 0.25);
         // let be = al + Vec2::new(width - 2. * char_settings.inside_padding, 0.);
         // let ga = de - Vec2::new(width - 2. * char_settings.inside_padding, 0.);
@@ -520,10 +520,12 @@ fn show_sacrifice_warning(
 
                 ui.set_cursor_pos([25.0, 40.0]);
 
-                ui.text_wrapped("Making a sacrifice exhudes a heavy toll. NINE is the number by which you pay, or the bounty is collected from thy undying bones.");
+                let mut message = vec![];
+                message.push("Making a sacrifice exhudes a heavy toll. NINE is the number".to_string());
+                message.push("by which you pay, or the bounty is collected from thy undying bones.".to_string());
 
                 let (stat, val) = player_character.get_strongest_stat();
-                let mut message = vec![];
+                
                 if val < 9 {
                     message.push("This body of thine will suffer if you attempt this now.".to_string());
 
@@ -536,11 +538,23 @@ fn show_sacrifice_warning(
                             CharacterStat::WIL => "willpower",
                             CharacterStat::AGI => "agility",
                         };
-                        message.push(format!("There are slivers of greatness in your {}, however. Look deeper into it. Let others sacrifice onto you before you approach again.", stat_name).to_string());
+                        message.push(format!("There are slivers of greatness in your {}, however. Look deeper into it.", stat_name).to_string());
+                        message.push("Let others sacrifice onto you before you approach again.".to_string());
                     }
                 }
 
+                let mut y = 30.0;
+                for msg in message {
+                    let [w, _] = ui.calc_text_size(&msg);
+                    ui.set_cursor_pos([(600.0 - w) * 0.5, y]);
+                    ui.text_wrapped(&msg);    
+                    y += 15.0;
+                }
+
+                let [w, _] = ui.calc_text_size("Are you sure you want to proceed?");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 100.0]);
                 ui.text_wrapped("Are you sure you want to proceed?");
+
 
                 let [w, _] = ui.calc_text_size("[Y]es");
                 ui.set_cursor_pos([200.0 - w * 0.5, 150.0]);
@@ -556,7 +570,6 @@ fn show_sacrifice_warning(
 
 fn show_exit(
     mut context: NonSendMut<ImguiContext>,
-    player_character: Query<&Character, With<PlayerMarker>>,
     player_state: Res<PlayerState>,
 ) {
     let ui = context.ui();
@@ -598,13 +611,9 @@ use crate::game::procgen::LevelDepth;
 
 fn show_descend_info(
     mut context: NonSendMut<ImguiContext>,
-    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
     player_state: Res<PlayerState>,
     depth: Res<LevelDepth>,
 ) {
-    let Ok(player_character) = player_character.get_single() else {
-        return;
-    };
 
     let ui = context.ui();
 
@@ -641,15 +650,10 @@ fn show_descend_info(
 
 fn show_ascended_status(
     mut context: NonSendMut<ImguiContext>,
-    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
     player_state: Res<PlayerState>,
-    depth: Res<LevelDepth>,
     turn_counter: Res<TurnCounter>,
 ) {
-    let Ok(player_character) = player_character.get_single() else {
-        return;
-    };
-
+    
     let ui = context.ui();
 
     if matches!(*player_state, PlayerState::Ascended) {
@@ -682,15 +686,10 @@ fn show_ascended_status(
 
 fn show_dead_screen(
     mut context: NonSendMut<ImguiContext>,
-    player_character: Query<(&Character, &Health), With<PlayerMarker>>,
     player_state: Res<PlayerState>,
     depth: Res<LevelDepth>,
     turn_counter: Res<TurnCounter>,
 ) {
-    let Ok(player_character) = player_character.get_single() else {
-        return;
-    };
-
     let ui = context.ui();
 
     if matches!(*player_state, PlayerState::Dead) {
@@ -754,10 +753,11 @@ fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerStat
                 ui.separator();
                 ui.text_wrapped("Help (this screen): H");
                 ui.text_wrapped("Movement: ASDW + QEZC (diagonal)");
+                ui.text_wrapped("Make Sacrifice (attempt to descend): M");
+                ui.text_wrapped("Focus Thaumaturgy: F");
                 ui.text_wrapped("Wait Turn: X");
                 ui.text_wrapped("Cancel: Escape");
                 ui.text_wrapped("Pickup: Space");
-                ui.text_wrapped("Make Sacrifice (attempt to descend): M");
                 ui.text_wrapped("Items: 1-9 to start interaction");
                 ui.separator();
                 let mut message = vec!["This challenge will see you use and consume artifacts that inflict upon your health strange glyphs to affect your state.".to_string()];
@@ -765,6 +765,7 @@ fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerStat
                 message.push("Remember that in this place NINE is the strength with which devotion accepts a sacrifice. Be wary of what you ask for. Remember it in your BONES.".to_string());
                 ui.text_wrapped(message.join(" "));
                 ui.spacing();
+
                 let [w, _] = ui.calc_text_size("Press SPACE to continue.");
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 350.0]);
                 ui.text("Press SPACE to continue.");
@@ -845,7 +846,7 @@ fn show_status_for_world_entities(
     for (other_entity, other_char, other_health) in &world_entities {
         let (x, y) = grid.norm(other_entity.position);
         if world.data.is_in_fov(x, y) {
-            ui.window(&other_entity.name)
+            ui.window(&format!("{}{}", other_entity.name, window_y))
                 .position_pivot([1.0, 0.0])
                 .position([width - 10.0, window_y], imgui::Condition::Always)
                 .size([400.0, 75.0], imgui::Condition::Always)

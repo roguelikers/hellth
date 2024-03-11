@@ -76,7 +76,7 @@ pub struct CurrentlySelectedItem(pub Option<Entity>);
 #[derive(Component)]
 pub struct CarriedMarker;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub enum ItemType {
     #[default]
     Unknown,

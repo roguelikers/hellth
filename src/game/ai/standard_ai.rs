@@ -1,7 +1,7 @@
 use crate::game::actions::*;
 use bevy::prelude::*;
 
-use super::{get_player, get_positions_and_health, AIBehaviour, AIStrategy, AbstractAIBehaviour};
+use super::{get_player, get_positions_and_health, AIBehaviour, AbstractAIBehaviour};
 
 #[derive(Debug)]
 pub struct StandardAIThinking;
@@ -77,10 +77,10 @@ impl AIBehaviour for StandardAIThinking {
             ]
         } else {
             vec![
+                a_track(entity, player),
                 a_flee(entity, player),
-                a_flee(entity, player),
-                a_behave(entity, AIStrategy::RandomMove),
-                a_flee(entity, player),
+                a_random_walk(entity),
+                a_track(entity, player),
             ]
         }
     }

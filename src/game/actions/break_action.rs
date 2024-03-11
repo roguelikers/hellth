@@ -35,15 +35,15 @@ impl Action for BreakAction {
             Res<WorldData>,
         )>::new(world);
 
-        let (mut transforms, mut healths, mut items, mut log, grid, world_data) =
+        let (mut transforms, mut healths, mut items, mut log, _, world_data) =
             read_system_state.get_mut(world);
 
-        let Ok((item, vis)) = items.get_mut(self.what) else {
+        let Ok((item, _)) = items.get_mut(self.what) else {
             log.add("ERR: No item found.");
             return vec![];
         };
 
-        let Ok((item_world_entity, mut transform, _)) = transforms.get_mut(self.what) else {
+        let Ok((item_world_entity, _, _)) = transforms.get_mut(self.what) else {
             log.add("ERR: No world item found.");
             return vec![];
         };

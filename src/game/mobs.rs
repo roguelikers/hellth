@@ -100,8 +100,8 @@ pub fn make_orc(commands: &mut Commands, grid: &Res<Grid>, place: IVec2, aggro: 
 }
 
 pub fn make_acolyte(
-    mut commands: &mut Commands,
-    mut rng: &mut ResMut<Random>,
+    commands: &mut Commands,
+    rng: &mut ResMut<Random>,
     grid: &Res<Grid>,
     place: IVec2,
 ) {
@@ -272,7 +272,7 @@ pub fn make_healer(
 }
 
 pub fn make_bat(commands: &mut Commands, rng: &mut ResMut<Random>, grid: &Res<Grid>, place: IVec2) {
-    let mut char = Character {
+    let char = Character {
         agility: rng.gen(8..10),
         ..Default::default()
     };

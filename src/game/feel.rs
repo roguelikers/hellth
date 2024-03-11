@@ -32,7 +32,7 @@ impl Random {
 
     pub fn percent<P: Unsigned>(&mut self, p: P) -> bool {
         if p.as_usize() > 100 {
-            return true;
+            true
         } else {
             (self.0.next_u32() as usize % 100) >= p.as_usize()
         }

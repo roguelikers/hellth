@@ -3,6 +3,7 @@ use bevy::{ecs::system::SystemState, prelude::*};
 use crate::game::{
     character::Character,
     grid::{WorldData, WorldEntity},
+    history::HistoryLog,
     mobs::TheHealer,
     player::PlayerState,
     turns::{TurnOrder, TurnOrderEntity},
@@ -32,6 +33,7 @@ impl Action for DeathAction {
                 Query<(&Character, &mut WorldEntity)>,
                 Query<&TheHealer>,
                 ResMut<PlayerState>,
+                ResMut<HistoryLog>,
             )>::new(world);
             let (
                 mut world_data,
@@ -39,6 +41,7 @@ impl Action for DeathAction {
                 mut world_entity_query,
                 healer_query,
                 mut player_state,
+                mut log,
             ) = read_system_state.get_mut(world);
 
             let Ok((character, world_entity)) = world_entity_query.get_mut(self.entity) else {
@@ -50,6 +53,8 @@ impl Action for DeathAction {
             turn_order.order.remove(&TurnOrderEntity {
                 entity: self.entity,
             });
+
+            log.add(&format!("{} died.", world_entity.name));
 
             if !world_entity.is_player {
                 let stats = make_item(character);
@@ -67,7 +72,6 @@ impl Action for DeathAction {
                     false,
                 )
             } else {
-                println!("PLAYER DIED");
                 *player_state = PlayerState::Dead;
                 (vec![], true)
             }

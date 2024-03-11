@@ -72,21 +72,22 @@ fn try_item_keys(keys: &Res<Input<KeyCode>>) -> Option<usize> {
 }
 
 fn try_direction_keys(keys: &Res<Input<KeyCode>>) -> Option<IVec2> {
-    if keys.just_pressed(KeyCode::W) {
+    let shift = keys.pressed(KeyCode::ShiftLeft);
+    if (shift && keys.pressed(KeyCode::W)) || keys.just_pressed(KeyCode::W) {
         Some(IVec2::new(0, 1))
-    } else if keys.just_pressed(KeyCode::S) {
+    } else if (shift && keys.pressed(KeyCode::S)) || keys.just_pressed(KeyCode::S) {
         Some(IVec2::new(0, -1))
-    } else if keys.just_pressed(KeyCode::A) {
+    } else if (shift && keys.pressed(KeyCode::A)) || keys.just_pressed(KeyCode::A) {
         Some(IVec2::new(-1, 0))
-    } else if keys.just_pressed(KeyCode::D) {
+    } else if (shift && keys.pressed(KeyCode::D)) || keys.just_pressed(KeyCode::D) {
         Some(IVec2::new(1, 0))
-    } else if keys.just_pressed(KeyCode::Q) {
+    } else if (shift && keys.pressed(KeyCode::Q)) || keys.just_pressed(KeyCode::Q) {
         Some(IVec2::new(-1, 1))
-    } else if keys.just_pressed(KeyCode::E) {
+    } else if (shift && keys.pressed(KeyCode::E)) || keys.just_pressed(KeyCode::E) {
         Some(IVec2::new(1, 1))
-    } else if keys.just_pressed(KeyCode::Z) {
+    } else if (shift && keys.pressed(KeyCode::Z)) || keys.just_pressed(KeyCode::Z) {
         Some(IVec2::new(-1, -1))
-    } else if keys.just_pressed(KeyCode::C) {
+    } else if (shift && keys.pressed(KeyCode::C)) || keys.just_pressed(KeyCode::C) {
         Some(IVec2::new(1, -1))
     } else if keys.just_pressed(KeyCode::Period) || keys.just_pressed(KeyCode::X) {
         Some(IVec2::ZERO)
@@ -152,10 +153,10 @@ pub fn character_controls(
     let Ok((
         entity,
         player_game_entity,
-        mut health,
-        mut character,
-        mut inventory,
-        mut equipped,
+        health,
+        character,
+        inventory,
+        equipped,
         mut pending_actions,
     )) = player_query.get_single_mut()
     else {

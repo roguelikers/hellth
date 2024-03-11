@@ -4,7 +4,7 @@ use crate::game::{
     character::{Character, CharacterStat},
     grid::WorldEntity,
     history::HistoryLog,
-    inventory::{CarriedItems, EquippedItems, Item},
+    inventory::{CarriedItems, EquippedItems, Item, ItemType},
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -51,6 +51,20 @@ impl Action for EquipAction {
             {
                 message.push(format!("{} equipped {}.", world_entity.name, item.name));
                 equipped.0.push(self.what);
+
+                let count_weapons = equipped
+                    .0
+                    .iter()
+                    .filter(|&i| {
+                        if let Ok(item) = item_query.get(*i) {
+                            item.item_type == ItemType::Weapon
+                        } else {
+                            false
+                        }
+                    })
+                    .count();
+
+                println!("Count weapons: {:?}", count_weapons);
 
                 for (stat, val) in &item.equip_stat_changes {
                     character[*stat] += *val;

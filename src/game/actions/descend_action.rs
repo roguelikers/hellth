@@ -5,6 +5,7 @@ use crate::game::{
     grid::WorldEntity,
     health::{Health, HitPoint},
     history::HistoryLog,
+    inventory::Item,
     procgen::PlayerMarker,
 };
 
@@ -29,16 +30,24 @@ impl Action for DescendAction {
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
             Query<
-                (&mut Character, &mut Health, &mut WorldEntity, &CarriedItems),
+                (
+                    &mut Character,
+                    &mut Health,
+                    &mut WorldEntity,
+                    &mut CarriedItems,
+                    &mut EquippedItems,
+                ),
                 With<PlayerMarker>,
             >,
+            Query<&Item>,
             ResMut<HistoryLog>,
             Res<LevelDepth>,
             ResMut<Random>,
         )>::new(world);
 
-        let (mut player_query, mut log, depth, mut rng) = read_system_state.get_mut(world);
-        let (mut char, mut health, mut world, carried) = player_query.single_mut();
+        let (mut player_query, item_query, mut log, depth, mut rng) =
+            read_system_state.get_mut(world);
+        let (mut char, mut health, _, carried, mut equipped) = player_query.single_mut();
 
         let (stat, val) = char.get_strongest_stat();
         if val < 9 {
@@ -87,6 +96,15 @@ impl Action for DescendAction {
         items_lost.truncate(depth.0 as usize);
         for i in items_lost {
             if let Some(item_found) = carried.0.get(i) {
+                if let Some(pos) = equipped.0.iter().position(|it| it == item_found) {
+                    if let Ok(item) = item_query.get(*item_found) {
+                        equipped.0.remove(pos);
+
+                        for (stat, val) in &item.equip_stat_changes {
+                            char[*stat] -= *val;
+                        }
+                    }
+                }
                 item_destruction.push(a_destroy(*item_found));
             }
         }

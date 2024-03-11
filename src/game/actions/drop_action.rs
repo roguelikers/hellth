@@ -1,10 +1,10 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    character::CharacterStat,
+    character::{Character, CharacterStat},
     grid::{Grid, WorldEntity},
     history::HistoryLog,
-    inventory::{CarriedItems, CarriedMarker, Item},
+    inventory::{CarriedItems, CarriedMarker, EquippedItems, Item},
     procgen::ClearLevel,
     turns::TurnTaker,
 };
@@ -30,7 +30,15 @@ impl Action for DropAction {
     fn do_action(&self, world: &mut World) -> ActionResult {
         let mut read_system_state = SystemState::<(
             Query<(&mut WorldEntity, &mut Transform), Without<TurnTaker>>,
-            Query<(&WorldEntity, Option<&mut CarriedItems>), With<TurnTaker>>,
+            Query<
+                (
+                    &WorldEntity,
+                    &mut Character,
+                    Option<&mut CarriedItems>,
+                    Option<&mut EquippedItems>,
+                ),
+                With<TurnTaker>,
+            >,
             Query<(&Item, &mut Visibility)>,
             ResMut<HistoryLog>,
             Res<Grid>,
@@ -39,7 +47,12 @@ impl Action for DropAction {
         let (mut transforms, mut world_entities, mut items, mut log, grid) =
             read_system_state.get_mut(world);
 
-        let Ok((person_entity, Some(mut person_carrying))) = world_entities.get_mut(self.who)
+        let Ok((
+            person_entity,
+            mut person_char,
+            Some(mut person_carrying),
+            Some(mut person_equipped),
+        )) = world_entities.get_mut(self.who)
         else {
             return vec![];
         };
@@ -61,6 +74,15 @@ impl Action for DropAction {
 
             if let Some(carried_item) = person_carrying.0.iter().position(|i| i == item_entity) {
                 person_carrying.0.remove(carried_item);
+                if let Some(pos) = person_equipped.0.iter().position(|i| i == item_entity) {
+                    person_equipped.0.remove(pos);
+
+                    for (stat, val) in &item.equip_stat_changes {
+                        person_char[*stat] -= *val;
+                    }
+
+                    log.add(&format!("{} unequipped {}.", person_entity.name, item.name));
+                }
                 *vis = Visibility::Visible;
                 mark_carried.push(*item_entity);
             }

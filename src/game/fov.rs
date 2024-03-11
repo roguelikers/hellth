@@ -83,7 +83,7 @@ pub fn recalculate_fov(
                 return;
             };
 
-            *vis = Visibility::Visible;
+            *vis = Visibility::Hidden;
             sprite.color = Color::RED;
         }
 

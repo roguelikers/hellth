@@ -11,7 +11,7 @@ use bevy_mod_picking::{
 use doryen_fov::MapData;
 
 use crate::game::{
-    ai::{AIAgent, PendingActions},
+    ai::PendingActions,
     character::{Character, CharacterStat},
     feel::TweenSize,
     fov::Sight,
@@ -20,7 +20,6 @@ use crate::game::{
     inventory::{CarriedItems, EquippedItems, ItemBuilder, ItemType},
     magic::{Focus, Magic},
     mobs::{make_acolyte, make_bat, make_goblin, make_healer, make_orc, make_thaumaturge},
-    player::PlayerState,
     sprite::{ChangePassability, ChangeSprite},
     sprites::*,
     turns::{Energy, TurnOrderEntity, TurnTaker},
@@ -72,8 +71,10 @@ pub fn generate_level(
     mut magic: ResMut<Magic>,
     grid: Res<Grid>,
     mut radius: ResMut<MapRadius>,
-    depth: Res<LevelDepth>,
+    mut depth: ResMut<LevelDepth>,
 ) {
+    let mut interiors: HashSet<IVec2> = HashSet::new();
+
     for proc in procgen.read() {
         let restart = proc == &ProcGenEvent::RestartWorld;
 
@@ -91,7 +92,7 @@ pub fn generate_level(
         if restart {
             magic.reset(&mut rng);
             log.clear();
-
+            depth.0 = 1;
             for c in &clear {
                 commands.entity(c).despawn_recursive();
             }
@@ -129,7 +130,8 @@ pub fn generate_level(
                     EXTERIOR_FLOOR4,
                 ])
                 .done();
-            let mut okay = HashSet::new();
+
+            let mut okay_for_player = HashSet::new();
 
             map.solid.clear();
             grid.entities.iter().for_each(|(pos, e)| {
@@ -144,7 +146,7 @@ pub fn generate_level(
                         sprite.index = symbols[rng.gen(0..symbols.len() as i32) as usize];
                         sprite.color = Color::WHITE;
                         *passable = Passability::Passable;
-                        okay.insert(*pos);
+                        okay_for_player.insert(*pos);
                         map.data.set_transparent(
                             (pos.x + grid.size.x / 2 + 1) as usize,
                             (pos.y + grid.size.y / 2 + 1) as usize,
@@ -164,7 +166,7 @@ pub fn generate_level(
                 }
             });
 
-            okay
+            okay_for_player
         }
 
         #[allow(clippy::identity_op)]
@@ -174,9 +176,10 @@ pub fn generate_level(
             size: IVec2,
             rng: &mut ResMut<Random>,
             grid: &Res<Grid>,
-            depth: &Res<LevelDepth>,
+            depth: &ResMut<LevelDepth>,
             map: &mut ResMut<WorldData>,
             okay: &mut HashSet<IVec2>,
+            interiors: &mut HashSet<IVec2>,
         ) {
             let forest_tiles = Tiles::default()
                 .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
@@ -192,7 +195,7 @@ pub fn generate_level(
                 let half = size / 2;
                 let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
 
-                let (tiles, passability) = if rng.percent(45 + depth.0 * 5) {
+                let (tiles, passability) = if rng.percent(45 - depth.0 * 5) {
                     (forest_tiles.as_slice(), Passability::SightBlocking)
                 } else {
                     (ruin_tiles.as_slice(), Passability::Blocking)
@@ -219,6 +222,8 @@ pub fn generate_level(
 
                             if passability == Passability::Blocking {
                                 map.solid.insert(pos);
+                            } else {
+                                interiors.insert(pos);
                             }
 
                             okay.remove(&pos);
@@ -243,6 +248,7 @@ pub fn generate_level(
             grid: &Res<Grid>,
             map: &mut ResMut<WorldData>,
             okay: &mut HashSet<IVec2>,
+            interiors: &mut HashSet<IVec2>,
         ) {
             let wall_tiles: Vec<usize> = Tiles::default().add_one(WALL1).done();
             let floor_tiles: Vec<usize> = Tiles::default()
@@ -311,6 +317,8 @@ pub fn generate_level(
                             if map.solid.contains(&pos) {
                                 map.solid.remove(&pos);
                             }
+
+                            interiors.insert(pos);
                         }
                     }
                 }
@@ -350,22 +358,25 @@ pub fn generate_level(
 
         make_obstructions(
             &mut commands,
-            20 + depth.0 as usize,
+            20 + 3 * depth.0 as usize,
             size,
             &mut rng,
             &grid,
             &depth,
             &mut map,
             &mut okay,
+            &mut interiors,
         );
+
         make_houses(
             &mut commands,
-            40 - depth.0 as usize,
+            40 - 2 * depth.0 as usize,
             size,
             &mut rng,
             &grid,
             &mut map,
             &mut okay,
+            &mut interiors,
         );
 
         let stats = [
@@ -377,16 +388,18 @@ pub fn generate_level(
             CharacterStat::AGI,
         ];
 
-        let mut places = rng.shuffle(
+        let mut places_for_interior = rng.shuffle(interiors.clone().into_iter().collect());
+
+        let mut places_for_spawning = rng.shuffle(
             okay.into_iter()
-                //.filter(|p| p.distance_squared(IVec2::ZERO) < radius.0 * radius.0)
+                .filter(|i| !interiors.contains(i))
                 .collect::<Vec<_>>(),
         );
 
         if !restart {
             // TODO: move player to safe place
             if let Ok((mut world, mut transform)) = world_entities.get_mut(player.single()) {
-                if let Some(place) = places.pop() {
+                if let Some(place) = places_for_spawning.pop() {
                     world.position = place;
                     let z = transform.translation.z;
                     *transform = grid.get_tile_position(place);
@@ -416,7 +429,7 @@ pub fn generate_level(
             }
 
             builder.create_at(
-                places.pop().unwrap_or_default(),
+                places_for_interior.pop().unwrap_or_default(),
                 &mut commands,
                 &grid,
                 &magic,
@@ -443,7 +456,7 @@ pub fn generate_level(
             }
 
             builder.create_at(
-                places.pop().unwrap_or_default(),
+                places_for_interior.pop().unwrap_or_default(),
                 &mut commands,
                 &grid,
                 &magic,
@@ -469,7 +482,7 @@ pub fn generate_level(
             }
 
             builder.create_at(
-                places.pop().unwrap_or_default(),
+                places_for_interior.pop().unwrap_or_default(),
                 &mut commands,
                 &grid,
                 &magic,
@@ -481,7 +494,7 @@ pub fn generate_level(
             let mut player = commands.spawn(WorldEntityBundle::new(
                 &grid,
                 "You",
-                places.pop().unwrap_or_default(),
+                places_for_spawning.pop().unwrap_or_default(),
                 EMO_MAGE.into(),
                 true,
                 WorldEntityKind::Player,
@@ -543,49 +556,57 @@ pub fn generate_level(
 
         match depth.0 {
             1 => {
-                for i in 2..rng.gen(3..5) {
+                for _ in 2..rng.gen(3..5) {
                     make_orc(
                         &mut commands,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                         rng.percent(10u32),
                     );
                 }
 
-                for i in 3..rng.gen(6..10) {
-                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                for _ in 3..rng.gen(6..10) {
+                    make_goblin(
+                        &mut commands,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
                 }
 
-                for i in 0..rng.gen(0..5) {
+                for _ in 0..rng.gen(0..5) {
                     make_bat(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
             }
 
             2 => {
-                for i in 2..rng.gen(2..5) {
+                for _ in 2..rng.gen(2..5) {
                     make_orc(
                         &mut commands,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                         rng.percent(20u32),
                     );
                 }
 
-                for i in 2..rng.gen(3..10) {
-                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                for _ in 2..rng.gen(3..10) {
+                    make_goblin(
+                        &mut commands,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
                 }
 
-                for i in 0..rng.gen(2..6) {
+                for _ in 0..rng.gen(2..6) {
                     make_bat(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
             }
@@ -595,81 +616,89 @@ pub fn generate_level(
                     &mut commands,
                     &mut rng,
                     &grid,
-                    places.pop().unwrap_or_default(),
+                    places_for_interior.pop().unwrap_or_default(),
                 );
 
-                for i in 3..rng.gen(3..10) {
+                for _ in 3..rng.gen(3..10) {
                     make_orc(
                         &mut commands,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                         rng.percent(20u32),
                     );
                 }
 
-                for i in 2..rng.gen(2..6) {
-                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                for _ in 2..rng.gen(2..6) {
+                    make_goblin(
+                        &mut commands,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
                 }
 
-                for i in 0..rng.gen(0..6) {
+                for _ in 0..rng.gen(0..6) {
                     make_bat(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
             }
 
             4 => {
-                for i in 2..rng.gen(2..4) {
+                for _ in 2..rng.gen(2..4) {
                     make_acolyte(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
 
-                for i in 1..rng.gen(1..3) {
+                for _ in 1..rng.gen(1..3) {
                     make_thaumaturge(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
 
-                for i in 1..rng.gen(1..5) {
+                for _ in 1..rng.gen(1..5) {
                     make_orc(
                         &mut commands,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                         rng.percent(70u32),
                     );
                 }
 
-                for i in 1..rng.gen(1..6) {
-                    make_goblin(&mut commands, &grid, places.pop().unwrap_or_default());
+                for _ in 1..rng.gen(1..6) {
+                    make_goblin(
+                        &mut commands,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
                 }
             }
 
             5 => {
-                for i in 5..rng.gen(5..9) {
+                for _ in 5..rng.gen(5..9) {
                     make_acolyte(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
 
-                for i in 1..rng.gen(5..10) {
+                for _ in 1..rng.gen(5..10) {
                     make_thaumaturge(
                         &mut commands,
                         &mut rng,
                         &grid,
-                        places.pop().unwrap_or_default(),
+                        places_for_interior.pop().unwrap_or_default(),
                     );
                 }
 
@@ -677,7 +706,7 @@ pub fn generate_level(
                     &mut commands,
                     &mut rng,
                     &grid,
-                    places.pop().unwrap_or_default(),
+                    places_for_interior.pop().unwrap_or_default(),
                 );
             }
 

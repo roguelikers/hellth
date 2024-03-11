@@ -1,7 +1,7 @@
 use crate::game::actions::*;
 use bevy::prelude::*;
 
-use super::{get_player, get_positions_and_health, AIBehaviour, AIStrategy, AbstractAIBehaviour};
+use super::{get_player, get_positions_and_health, AIBehaviour, AbstractAIBehaviour};
 
 #[derive(Debug)]
 pub struct AggroAIThinking;
