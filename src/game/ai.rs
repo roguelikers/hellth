@@ -1,4 +1,6 @@
 pub mod aggro_ai;
+pub mod aggro_caster;
+pub mod caster_ai;
 pub mod random_move_ai;
 pub mod standard_ai;
 
@@ -9,7 +11,10 @@ use bevy::{ecs::system::SystemState, prelude::*, utils::HashMap};
 
 use crate::game::turns::TurnOrderEntity;
 
-use self::{aggro_ai::ai_aggro, random_move_ai::ai_random_move, standard_ai::ai_standard};
+use self::{
+    aggro_ai::ai_aggro, aggro_caster::ai_aggro_caster, caster_ai::ai_caster,
+    random_move_ai::ai_random_move, standard_ai::ai_standard,
+};
 
 use super::{
     actions::{a_think, AbstractAction, ActionEvent},
@@ -27,6 +32,8 @@ pub enum AIStrategy {
     Standard,
     RandomMove,
     Aggro,
+    AggroCaster,
+    Caster,
 }
 
 impl From<AIStrategy> for AbstractAIBehaviour {
@@ -35,6 +42,8 @@ impl From<AIStrategy> for AbstractAIBehaviour {
             AIStrategy::Standard => ai_standard(),
             AIStrategy::RandomMove => ai_random_move(),
             AIStrategy::Aggro => ai_aggro(),
+            AIStrategy::AggroCaster => ai_aggro_caster(),
+            AIStrategy::Caster => ai_caster(),
         }
     }
 }

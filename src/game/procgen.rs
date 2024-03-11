@@ -629,19 +629,12 @@ pub fn generate_level(
             }
 
             3 => {
-                make_acolyte(
-                    &mut commands,
-                    &mut rng,
-                    &grid,
-                    places_for_interior.pop().unwrap_or_default(),
-                );
-
                 for _ in 3..rng.gen(3..10) {
-                    make_orc(
+                    make_acolyte(
                         &mut commands,
+                        &mut rng,
                         &grid,
                         places_for_interior.pop().unwrap_or_default(),
-                        rng.percent(20u32),
                     );
                 }
 
@@ -653,7 +646,7 @@ pub fn generate_level(
                     );
                 }
 
-                for _ in 0..rng.gen(0..6) {
+                for _ in 0..rng.gen(0..3) {
                     make_bat(
                         &mut commands,
                         &mut rng,
@@ -664,7 +657,7 @@ pub fn generate_level(
             }
 
             4 => {
-                for _ in 2..rng.gen(2..4) {
+                for _ in 2..rng.gen(4..6) {
                     make_acolyte(
                         &mut commands,
                         &mut rng,
@@ -673,7 +666,7 @@ pub fn generate_level(
                     );
                 }
 
-                for _ in 1..rng.gen(1..3) {
+                for _ in 1..rng.gen(1..4) {
                     make_thaumaturge(
                         &mut commands,
                         &mut rng,
@@ -682,7 +675,7 @@ pub fn generate_level(
                     );
                 }
 
-                for _ in 1..rng.gen(1..5) {
+                for _ in 1..rng.gen(1..2) {
                     make_orc(
                         &mut commands,
                         &grid,
@@ -814,14 +807,14 @@ impl Plugin for SvarogProcgenPlugin {
             .insert_resource(LevelDepth(1))
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(Msaa::Off)
-            .add_systems(Update, generate_level.run_if(on_event::<ProcGenEvent>()))
             .add_systems(Update, on_new_fov_added.run_if(in_state(GameStates::Game)))
             .add_systems(
-                Last,
+                Update,
                 recalculate_fov
                     .run_if(on_event::<RecalculateFOVEvent>())
                     .run_if(in_state(GameStates::Game)),
             )
-            .add_systems(Update, (debug_radius, debug_procgen));
+            .add_systems(Update, (debug_radius, debug_procgen))
+            .add_systems(Last, generate_level.run_if(on_event::<ProcGenEvent>()));
     }
 }

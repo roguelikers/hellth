@@ -23,11 +23,11 @@ impl AIBehaviour for AggroAIThinking {
         let stats = { get_positions_and_health(world, &[entity, player]) };
 
         let Some((player_pos, player_hp)) = stats.get(&player).cloned().unwrap_or_default() else {
-            return vec![];
+            return vec![a_random_walk(entity)];
         };
 
         let Some((enemy_pos, enemy_hp)) = stats.get(&entity).cloned().unwrap_or_default() else {
-            return vec![];
+            return vec![a_random_walk(entity)];
         };
 
         let distance = (player_pos.distance_squared(enemy_pos) as f32).sqrt();

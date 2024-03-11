@@ -143,11 +143,7 @@ pub fn make_acolyte(
             TurnTaker,
             char,
             Focus(0),
-            AIAgent(if rng.coin() {
-                AIStrategy::Aggro
-            } else {
-                AIStrategy::Standard
-            }),
+            AIAgent(AIStrategy::Caster),
             CarriedItems::default(),
             EquippedItems::default(),
             PendingActions::default(),
@@ -199,10 +195,10 @@ pub fn make_thaumaturge(
             TurnTaker,
             char,
             Focus(4),
-            if rng.coin() {
-                AIAgent::default()
+            if rng.percent(80u32) {
+                AIAgent(AIStrategy::Caster)
             } else {
-                AIAgent(AIStrategy::RandomMove)
+                AIAgent(AIStrategy::AggroCaster)
             },
             CarriedItems::default(),
             EquippedItems::default(),
@@ -257,8 +253,8 @@ pub fn make_healer(
         .insert((
             TurnTaker,
             char,
-            Focus(5),
-            AIAgent::default(),
+            Focus(2),
+            AIAgent(AIStrategy::Caster),
             CarriedItems::default(),
             EquippedItems::default(),
             PendingActions::default(),

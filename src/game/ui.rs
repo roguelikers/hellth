@@ -337,7 +337,7 @@ fn draw_hp_bar(
     if let Some(focus) = focus {
         if let Some(item) = item {
             for (index, (stat, val)) in item.equip_stat_changes.iter().enumerate() {
-                let i = health.hitpoints.len() - 1 - index - focus as usize;
+                let i = { (health.hitpoints.len() as i32 - 1 - index as i32 - focus as i32).clamp(0, 100) } as usize;
                 let p1 = [
                     p[0] + i as f32 * (width + padding) + offset.x,
                     p[1] + offset.y + height + 4.0,
@@ -364,7 +364,8 @@ fn draw_hp_bar(
                 draw.add_rect(p1, p2, ImColor32::from_rgb(0, 0, 0)).filled(false).build();
             }
         } else {
-            let i = health.hitpoints.len() - 1 - focus as usize;
+
+            let i = { (health.hitpoints.len() as i32 - 1 - focus as i32).clamp(0, 100) } as usize;
             let p1 = [
                 p[0] + i as f32 * (width + padding) + offset.x,
                 p[1] + offset.y + height + 4.0,

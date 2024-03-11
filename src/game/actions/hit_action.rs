@@ -81,7 +81,10 @@ impl Action for HitAction {
         };
         log.add(&format!(
             "{} {} {} damage to {}.",
-            world_attacker.name, verb, damage_amount, world_target.name
+            world_attacker.name,
+            verb,
+            damage_amount,
+            world_target.name.to_lowercase()
         ));
 
         let diff = target_health.normal_damage(damage_amount as usize);

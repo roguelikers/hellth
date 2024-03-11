@@ -124,6 +124,15 @@ impl ItemBuilder {
         self
     }
 
+    pub fn to_item(self) -> Item {
+        Item {
+            name: self.name,
+            image: self.tile,
+            item_type: self.item_type,
+            equip_stat_changes: self.stats.into_iter().collect(),
+        }
+    }
+
     pub fn create_at_raw(
         self,
         pos: IVec2,
