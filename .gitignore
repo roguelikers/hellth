@@ -1,3 +1,4 @@
 /target
 *.zip
 .vscode
+Cargo.lock
