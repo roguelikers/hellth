@@ -9,16 +9,26 @@ HELLTH /no pain, no gain/ is a roguelike in which thaumaturgically consuming you
 # How to play
 
 ASDW+QEZC: movement
+
 Space/Comma: pickup
+
 Numbers 1-9: inventory item actions
+
 T: throw
+
 D: drop
+
 C: consume
+
 E: equip/unequip
+
 M: make sacrifice (descend to next level)
+
 Escape: cancel/exit
 
-_Made as a part of the 7drl 2024 challenge using Rust and Bevy, and the very nice assets from the wonderful Kenney's 1bit Pack._
+## This is a 7DRL game
+
+_Made as a part of the [7drl 2024 challenge](https://gavrilovmiroslav.itch.io/hellth) using Rust and Bevy, and the very nice assets from the wonderful Kenney's 1bit Pack._
 
 > Version 1.1 is the officially submitted 7drl version.
 > Version1.2 is a post-jam update with bugfixes and some quality-of-life improvements, including a don't-be-an-octopus achievement. 
