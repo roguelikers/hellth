@@ -67,6 +67,7 @@ impl Action for FlyAction {
             vec![a_fly(self.what, self.path[1..].to_vec(), true)]
         } else {
             log.add("The thrown item falls down.");
+            log.add("");
             vec![a_break(self.what)]
         }
     }

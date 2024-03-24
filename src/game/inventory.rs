@@ -24,6 +24,7 @@ pub struct Item {
 #[derive(PartialEq, Eq, Debug)]
 pub enum ItemActions {
     Drop,
+    Focus,
     Equip,
     Unequip,
     Throw,
@@ -35,7 +36,7 @@ impl Item {
     pub fn available_actions(&self) -> Vec<ItemActions> {
         match self.item_type {
             ItemType::Unknown => vec![ItemActions::Drop],
-            ItemType::Artifact => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
+            ItemType::Artifact => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume, ItemActions::Focus],
             ItemType::Weapon => vec![
                 ItemActions::Drop,
                 ItemActions::Throw,
@@ -44,7 +45,7 @@ impl Item {
             ],
             ItemType::Armor => vec![ItemActions::Drop, ItemActions::Equip, ItemActions::Unequip],
             ItemType::Potion => vec![ItemActions::Drop, ItemActions::Throw, ItemActions::Consume],
-            ItemType::Scroll => vec![ItemActions::Drop, ItemActions::Examine],
+            ItemType::Scroll => vec![ItemActions::Examine],
         }
     }
 }

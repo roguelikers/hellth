@@ -76,6 +76,7 @@ impl Action for ThrowAction {
         if let Some(carried_item) = person_carrying.0.iter().position(|i| *i == item_entity) {
             if equipped.0.contains(&item_entity) {
                 log.add("Cannot throw equipped item. Unequip first.");
+                log.add("");
                 return vec![];
             }
 

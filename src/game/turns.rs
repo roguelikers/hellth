@@ -102,15 +102,15 @@ pub fn turn_order_progress(
 
 fn get_recovery_based_on_str(str: i32) -> u32 {
     match str {
-        i32::MIN..=0_i32 => 24,
-        1 => 23,
-        2 => 22,
-        3 => 21,
-        4 => 20,
-        5 => 19,
-        6 => 18,
-        7 => 17,
-        8 => 16,
+        i32::MIN..=0_i32 => 1000,
+        1 => 1000,
+        2 => 1000,
+        3 => 1000,
+        4 => 1000,
+        5 => 1000,
+        6 => 1000,
+        7 => 1000,
+        8 => 1000,
         9 => 15,
         10_i32..=i32::MAX => 14,
     }
@@ -143,7 +143,7 @@ fn on_turn_end(
                     if let Some((stat, val)) = rightmost.stat {
                         char[stat] -= val;
                         log.add(&format!(
-                            "You can feel your body force thaum out. {} {} is dispelled.",
+                            "You can feel your body force thaum out over time. {} {} is dispelled.",
                             val,
                             format!("{:?}", stat).to_uppercase(),
                         ));

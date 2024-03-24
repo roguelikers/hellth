@@ -1,6 +1,5 @@
 pub mod ai_think_action;
 pub mod break_action;
-pub mod cast_spell_action;
 pub mod consume_action;
 pub mod death_action;
 pub mod descend_action;
@@ -23,24 +22,27 @@ pub mod track_action;
 pub mod unequip_action;
 pub mod wait_action;
 pub mod yell_action;
+pub mod fortune_action;
+pub mod heal_action;
 
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
-use super::character::CharacterStat;
+use super::{character::CharacterStat, music::GameAudioSettings};
 
 pub use {
-    ai_think_action::a_think, break_action::a_break, cast_spell_action::a_cast_spell,
+    ai_think_action::a_think, break_action::a_break, 
     consume_action::a_consume, death_action::a_death, descend_action::a_descend,
     destroy_action::a_destroy, drop_action::a_drop, equip_action::a_equip, flee_action::a_flee,
     fly_action::a_fly, focus_action::a_focus, hit_action::a_hit, inflict_action::a_inflict,
     leave_bones_action::a_leave_bones, melee_attack_action::a_melee, move_action::a_move,
     pickup_action::a_pickup, random_walk_action::a_random_walk, switch_behaviour_action::a_behave,
     throw_action::a_throw, track_action::a_track, unequip_action::a_unequip, wait_action::a_wait,
-    yell_action::a_yell,
+    yell_action::a_yell, fortune_action::a_fortune, heal_action::a_heal
 };
 
 use bevy::prelude::*;
+use bevy_kira_audio::{Audio, AudioControl};
 
 pub type AbstractAction = Box<dyn Action>;
 
@@ -61,21 +63,27 @@ fn handle_gameplay_action(world: &mut World) {
         return;
     };
 
-    // println!("HANDLE =====================================================");
     let mut reactions = VecDeque::new();
     for ev in events {
         {
-            //println!("  {:?}", ev.0);
             reactions.extend(ev.0.do_action(world));
             while !reactions.is_empty() {
                 let reaction = reactions.pop_front().unwrap();
-                //println!("    {:?}", reaction);
                 let more_reactions = reaction.do_action(world);
                 reactions.extend(more_reactions);
             }
         }
     }
-    // println!("DONE =====================================================");
+}
+
+pub fn play_sfx(name: &str, world: &mut World) {
+    if let Some(settings) = world.get_resource::<GameAudioSettings>() {
+        if let Some(asset_server) = world.get_resource::<AssetServer>() {
+            if let Some(audio) = world.get_resource::<Audio>() {
+                audio.play(asset_server.load(format!("sounds/{}.ogg", name))).with_volume(settings.sfx_volume);
+            }
+        }
+    }
 }
 
 pub struct SvarogActionsPlugin;

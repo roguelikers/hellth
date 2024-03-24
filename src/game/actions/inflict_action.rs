@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    actions::a_random_walk,
+    actions::{a_random_walk, play_sfx},
     character::{Character, CharacterStat},
     feel::Random,
     grid::{Grid, WorldData, WorldEntity},
@@ -66,13 +66,9 @@ impl Action for InflictAction {
             return vec![];
         };
 
-        if !world_data.data.is_in_fov(x, y) {
-            return vec![a_random_walk(self.who)];
-        }
-
         log.add(&format!("{} chants in tongues.", name));
 
-        if rng.percent(100 - 15u32 + target_char.arcana as u32 * 2) {
+        if rng.percent(100 - (15i32 + target_char.arcana * 2).clamp(1, 30) as u32) {
             log.add("You momentarily felt a spell affect you, but then it dissipates.");
             return vec![];
         }
@@ -114,7 +110,8 @@ impl Action for InflictAction {
             "You are afflicted by a curse with {} effects!",
             count
         ));
-
+        log.add("");
+        play_sfx("item_cast", world);
         vec![]
     }
 }

@@ -1,4 +1,4 @@
-use crate::game::actions::*;
+use crate::game::{actions::*, feel::Random};
 use bevy::prelude::*;
 
 use super::{get_player, get_positions_and_health, AIBehaviour, AbstractAIBehaviour};
@@ -30,48 +30,13 @@ impl AIBehaviour for AggroAIThinking {
             return vec![a_random_walk(entity)];
         };
 
-        let distance = (player_pos.distance_squared(enemy_pos) as f32).sqrt();
+        let mut rng = world.get_resource_mut::<Random>().unwrap();
 
-        if enemy_hp.hitpoints.len() + 1 >= player_hp.hitpoints.len() && distance < 1.45 {
-            return vec![a_track(entity, player)];
-        }
-
-        let mut bravery = if enemy_hp.hitpoints.len() > player_hp.hitpoints.len() {
-            7
-        } else {
-            -1
-        };
-
-        if distance > 10.0 {
-            return vec![a_random_walk(entity), a_track(entity, player)];
-        }
-
-        if distance > 1.44 {
-            bravery += 4;
-        } else {
-            bravery += 10;
-        }
-
-        if bravery > 0 {
-            if distance > 4.0 {
-                vec![
-                    a_track(entity, player),
-                    a_track(entity, player),
-                    a_track(entity, player),
-                ]
-            } else {
-                vec![
-                    a_track(entity, player),
-                    a_flee(entity, player),
-                    a_random_walk(entity),
-                ]
-            }
-        } else {
-            vec![
-                a_flee(entity, player),
-                a_random_walk(entity),
-                a_track(entity, player),
-            ]
-        }
+        vec![
+            a_track(entity, player),
+            a_track(entity, player),
+            a_track(entity, player),
+            if rng.percent(20u32) { a_wait() } else { a_track(entity, player) },
+        ]
     }
 }

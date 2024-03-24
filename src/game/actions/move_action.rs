@@ -106,6 +106,7 @@ impl Action for MoveAction {
                     fov_events.send(RecalculateFOVEvent);
                 }
 
+                play_sfx("gameplay_step", world);
                 vec![]
             }
 

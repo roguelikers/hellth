@@ -1,10 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    character::{Character, CharacterStat},
-    grid::WorldEntity,
-    health::Health,
-    history::HistoryLog,
+    actions::play_sfx, character::{Character, CharacterStat}, grid::WorldEntity, health::Health, history::HistoryLog
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -17,22 +14,6 @@ pub struct FocusAction {
 
 pub fn a_focus(who: Entity) -> AbstractAction {
     Box::new(FocusAction { who })
-}
-
-fn get_focus_based_on_arc(arc: i32) -> u32 {
-    match arc {
-        i32::MIN..=0_i32 => 0,
-        1 => 1,
-        2 => 1,
-        3 => 1,
-        4 => 1,
-        5 => 2,
-        6 => 2,
-        7 => 2,
-        8 => 3,
-        9 => 3,
-        10_i32..=i32::MAX => 4,
-    }
 }
 
 impl Action for FocusAction {
@@ -52,20 +33,30 @@ impl Action for FocusAction {
             return vec![];
         };
 
-        focus.0 += get_focus_based_on_arc(char.arcana);
+        focus.0 += 1;
         if focus.0 >= health.hitpoints.len() as u32 {
-            focus.0 = health.hitpoints.len() as u32;
+            focus.0 = 0;
         }
+
+        let mut log_written = false;
         if entity.is_player {
             if focus.0 > 0 {
                 log.add(&format!("Your focus is raised to {}.", focus.0));
+                log_written = true;
             } else {
                 log.add("You focus. You can implant consumed thaumaturgy deeper into your soul.");
+                log_written = true;
             }
         } else {
             log.add(&format!("{} focuses.", entity.name));
+            log_written = true;
         }
-
+        log.add("");
+        
+        if entity.is_player {
+            play_sfx("gameplay_surprise", world);
+        }
+        
         vec![]
     }
 }

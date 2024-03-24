@@ -72,6 +72,7 @@ impl Action for DropAction {
             new_transform.translation.z = transform.translation.z;
             *transform = new_transform;
 
+            let mut log_written = false;
             if let Some(carried_item) = person_carrying.0.iter().position(|i| i == item_entity) {
                 person_carrying.0.remove(carried_item);
                 if let Some(pos) = person_equipped.0.iter().position(|i| i == item_entity) {
@@ -82,9 +83,13 @@ impl Action for DropAction {
                     }
 
                     log.add(&format!("{} unequipped {}.", person_entity.name, item.name));
+                    log_written = true;
                 }
                 *vis = Visibility::Visible;
                 mark_carried.push(*item_entity);
+            }
+            if log_written {
+                log.add("");
             }
         }
 

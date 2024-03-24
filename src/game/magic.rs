@@ -30,9 +30,36 @@ const STATS: [CharacterStat; 6] = [
 #[derive(Component)]
 pub struct Focus(pub u32);
 
+pub type StatShorthand = String;
+
+pub enum MagicAspect {
+    Lore,       // summoning
+    Edge,       // inflicts negatives around player
+    Prison,     // inflicts burn around enemies
+    Regalia,    // produces random artifacts around map -- all with magic aspects
+    Dust,       // steals health from others
+}
+
+// pub const MAGIC_ASPECT_SONGS: [&str; 5] = [
+//     "1/ We start through LORE, like stories of old,",
+//     "2/    through hardships up the knife, to the EDGE",
+//     "3/ to slice and fall, ourselves into PRISON cast",
+//     "4/    our REGALIA taken and thrown to the wolves",
+//     "5/ until we become DUST in someone else's cough.",
+// ];
+
+/* 
+    1/ We start through LORE, like stories of old,
+    2/    through hardships up the knife, to the EDGE
+    3/ to slice and fall, ourselves into PRISON cast
+    4/    our REGALIA taken and thrown to the wolves
+    5/ until we become DUST in someone else's cough.
+*/
+
 #[derive(Resource, Default)]
 pub struct Magic {
     pub color_bindings: HashMap<CharacterStat, Color>,
+    pub aspects: HashMap<StatShorthand, MagicAspect>,
 }
 
 impl Magic {
@@ -54,6 +81,7 @@ impl Magic {
 
         Self {
             color_bindings: HashMap::from_iter(mapping),
+            ..Default::default()
         }
     }
 
@@ -86,26 +114,26 @@ fn knowledge_checker(
     } else if let Some(old_state) = old.as_ref() {
         for stat in &player.learned {
             if !old_state.learned.contains(stat) {
-                log.add(&format!("You got used to this place - you can now distinguish the faint trace aura of {}.", format!("{:?}", stat).to_uppercase()));
+                log.add(&format!("You learned the color of {}. Check in your stat bar to see which color it is.", format!("{:?}", stat).to_uppercase()));
             }
         }
 
         if (player.wisdom > 4 && player.arcana > 4)
             && (old_state.wisdom <= 4 || old_state.arcana <= 4)
         {
-            log.add("You have gained insight into some aspects of your enemies.");
+            log.add("Because of your higher wisdom and arcana, you can discern some enemy stats.");
         } else if (player.wisdom > 3 && player.arcana > 3)
             && (old_state.wisdom <= 3 || old_state.arcana <= 3)
         {
             player.learned.insert(CharacterStat::WIS);
             player.learned.insert(CharacterStat::ARC);
-            log.add("Your recent enchantments allow you to wisely assess arcane elements - you now see auras in the world!");
+            log.add("Because of your high WIS and ARC score, you now see the color of the strongest stat's in items and enemies!");
         }
 
         if (old_state.wisdom > 3 && old_state.arcana > 3)
             && (player.wisdom <= 3 || player.arcana <= 3)
         {
-            log.add("Your perception grows bleak again.");
+            log.add("Your perception grows bleak again - you can no longer see stats as colors.");
         }
 
         *old = Some(player.clone());

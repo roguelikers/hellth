@@ -17,6 +17,9 @@ use bevy_mod_picking::{
     PickableBundle,
 };
 
+#[derive(Component)]
+pub struct Mob;
+
 pub fn make_goblin(commands: &mut Commands, grid: &Res<Grid>, place: IVec2) {
     commands
         .spawn(WorldEntityBundle::new(
@@ -41,7 +44,7 @@ pub fn make_goblin(commands: &mut Commands, grid: &Res<Grid>, place: IVec2) {
         })
         .insert((
             TurnTaker,
-            Character::default(),
+            Character { agility: 6, ..Default::default() },
             Focus(0),
             AIAgent::default(),
             CarriedItems::default(),
@@ -54,10 +57,8 @@ pub fn make_goblin(commands: &mut Commands, grid: &Res<Grid>, place: IVec2) {
         ));
 }
 
-pub fn make_orc(commands: &mut Commands, grid: &Res<Grid>, place: IVec2, aggro: bool) {
-    let mut char = Character::default();
-    char.agility += 2;
-    char.strength += 2;
+pub fn make_orc(commands: &mut Commands, rng: &mut ResMut<Random>, grid: &Res<Grid>, place: IVec2, aggro: bool) {
+    let mut char = Character::random(rng);
 
     commands
         .spawn(WorldEntityBundle::new(
@@ -81,6 +82,7 @@ pub fn make_orc(commands: &mut Commands, grid: &Res<Grid>, place: IVec2, aggro: 
             ),));
         })
         .insert((
+            Mob,
             TurnTaker,
             char,
             Focus(0),
@@ -105,7 +107,7 @@ pub fn make_acolyte(
     grid: &Res<Grid>,
     place: IVec2,
 ) {
-    let mut char = Character::default();
+    let mut char = Character::random(rng);
     char.arcana += 2;
 
     char.intelligence += rng.gen(0..3);
@@ -140,6 +142,7 @@ pub fn make_acolyte(
             ),));
         })
         .insert((
+            Mob,
             TurnTaker,
             char,
             Focus(0),
@@ -160,7 +163,7 @@ pub fn make_thaumaturge(
     grid: &Res<Grid>,
     place: IVec2,
 ) {
-    let mut char = Character::default();
+    let mut char = Character::random(rng);
     char.arcana += 3;
     char.wisdom += 2;
 
@@ -200,13 +203,14 @@ pub fn make_thaumaturge(
             } else {
                 AIAgent(AIStrategy::AggroCaster)
             },
+            Mob,
             CarriedItems::default(),
             EquippedItems::default(),
             PendingActions::default(),
             PickableBundle::default(),
             RecoveryCounter::default(),
             On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-            Health::new(8),
+            Health::new(4),
         ));
 }
 
@@ -217,9 +221,10 @@ pub fn make_healer(
     commands: &mut Commands,
     rng: &mut ResMut<Random>,
     grid: &Res<Grid>,
+    stash: i32,
     place: IVec2,
 ) {
-    let mut char = Character {
+    let char = Character {
         strength: 6,
         arcana: 5,
         intelligence: rng.gen(8..9),
@@ -253,15 +258,15 @@ pub fn make_healer(
         .insert((
             TurnTaker,
             char,
-            Focus(2),
-            AIAgent(AIStrategy::Caster),
+            Focus(5),
+            AIAgent(AIStrategy::TheHealer),
             CarriedItems::default(),
             EquippedItems::default(),
             PendingActions::default(),
             PickableBundle::default(),
             RecoveryCounter::default(),
             On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-            Health::new(14),
+            Health::new((10 + stash).clamp(0, 18) as usize),
             TheHealer,
         ));
 }
@@ -269,6 +274,8 @@ pub fn make_healer(
 pub fn make_bat(commands: &mut Commands, rng: &mut ResMut<Random>, grid: &Res<Grid>, place: IVec2) {
     let char = Character {
         agility: rng.gen(8..10),
+        strength: rng.gen(3..6),
+        willpower: rng.gen(3..6),
         ..Default::default()
     };
 
@@ -294,6 +301,7 @@ pub fn make_bat(commands: &mut Commands, rng: &mut ResMut<Random>, grid: &Res<Gr
             ),));
         })
         .insert((
+            Mob,
             TurnTaker,
             char,
             Focus(0),

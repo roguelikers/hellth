@@ -66,4 +66,12 @@ impl Health {
             }
         }
     }
+
+    pub fn enchanted_heal(&mut self, n: usize, typ: CharacterStat) {
+        for _ in 0..n {
+            if self.hitpoints.len() < self.size {
+                self.hitpoints.push_front(HitPoint { stat: Some((typ, -1)) });
+            }
+        }
+    }
 }

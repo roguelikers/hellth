@@ -26,6 +26,7 @@ impl Action for DeathAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
+        let mut sfx = None;
         let (result, is_player) = {
             let mut read_system_state = SystemState::<(
                 ResMut<WorldData>,
@@ -55,7 +56,7 @@ impl Action for DeathAction {
             });
 
             log.add(&format!("{} died.", world_entity.name));
-
+            log.add("");
             if !world_entity.is_player {
                 let stats = make_item(character);
 
@@ -63,6 +64,7 @@ impl Action for DeathAction {
                     *player_state = PlayerState::Ascended;
                 }
 
+                sfx = Some("gameplay_kill");
                 (
                     if !stats.is_empty() {
                         vec![a_leave_bones(stats, world_entity.position)]
@@ -72,7 +74,8 @@ impl Action for DeathAction {
                     false,
                 )
             } else {
-                *player_state = PlayerState::Dead;
+                *player_state = PlayerState::Dead;                
+                sfx = Some("gameplay_death");
                 (vec![], true)
             }
         };
@@ -91,6 +94,10 @@ impl Action for DeathAction {
             for rem in to_remove {
                 world.despawn(rem);
             }
+        }
+
+        if let Some(sfx) = sfx {
+            play_sfx(sfx, world);
         }
         result
     }

@@ -27,12 +27,7 @@ use crate::game::{
 };
 
 use super::{
-    feel::Random,
-    fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent},
-    grid::{Grid, Passability, WorldData, WorldEntity},
-    history::HistoryLog,
-    turns::{TurnCounter, TurnOrder, TurnOrderProgressEvent},
-    DebugFlag, GameStates,
+    feel::Random, fov::{on_new_fov_added, recalculate_fov, RecalculateFOVEvent}, grid::{Grid, Passability, WorldData, WorldEntity}, history::HistoryLog, turns::{TurnCounter, TurnOrder, TurnOrderProgressEvent}, DebugFlag, GameStates
 };
 
 #[derive(Event, PartialEq, Eq)]
@@ -48,7 +43,7 @@ pub struct PlayerMarker;
 pub struct MapRadius(pub i32);
 
 #[derive(Resource)]
-pub struct LevelDepth(pub u32);
+pub struct LevelDepth(pub u32, pub i32);
 
 #[derive(Component)]
 pub struct ClearLevel;
@@ -181,9 +176,16 @@ pub fn generate_level(
             okay: &mut HashSet<IVec2>,
             interiors: &mut HashSet<IVec2>,
         ) {
+            let mut forests = vec![EMPTY_FLOOR, FOREST1, FOREST2, FOREST3];
+            if depth.0 == 3 {
+                forests.extend(vec![ FOREST4, FOREST4, FOREST4, FOREST5 ]);
+            } else if depth.0 == 4 { 
+                forests.extend(vec![ FOREST4, FOREST4, FOREST5, FOREST6, FOREST7, FOREST7 ]);
+            } else if depth.0 == 5 {
+                forests.extend(vec![ FOREST4, FOREST7, FOREST8, FOREST7, FOREST8, FOREST7, FOREST8 ]);
+            }
             let forest_tiles = Tiles::default()
-                .add_bunch(&[EMPTY_FLOOR, FOREST1, FOREST2, FOREST3])
-                .add_more(FOREST4, 2)
+                .add_bunch(forests.as_slice())
                 .done();
 
             let ruin_tiles = Tiles::default()
@@ -195,7 +197,7 @@ pub fn generate_level(
                 let half = size / 2;
                 let middle = IVec2::new(rng.gen(-half.x..half.x), rng.gen(-half.y..half.y));
 
-                let (tiles, passability) = if rng.percent(45 - depth.0 * 5) {
+                let (tiles, passability) = if rng.percent(45 - (depth.0 * 5).clamp(0, 25)) {
                     (forest_tiles.as_slice(), Passability::SightBlocking)
                 } else {
                     (ruin_tiles.as_slice(), Passability::Blocking)
@@ -409,6 +411,21 @@ pub fn generate_level(
                 }
             }
         }
+        
+        // add scrolls
+        for _ in 1..4 {
+            let mut builder = ItemBuilder::default()
+                .with_name("Arcane Writ")
+                .with_image(rng.from(&[SCROLL1, SCROLL2]))
+                .with_type(ItemType::Scroll);
+            
+            builder.create_at(
+                places_for_interior.pop().unwrap_or_default(),
+                &mut commands,
+                &grid,
+                &magic,
+            )
+        }
 
         // add staffs
         for _ in 1..(5 + depth.0) {
@@ -424,7 +441,7 @@ pub fn generate_level(
                 let mut power = 0;
                 let mut attempt = 0;
                 while power == 0 || (stat == CharacterStat::ARC && stat == CharacterStat::WIS) {
-                    power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
+                    power = rng.gen((-1 - depth.0 as i32)..(5 + depth.0 as i32));
                     stat = rng.from(&stats);
                     attempt += 1;
                     if attempt > 10 {
@@ -456,7 +473,7 @@ pub fn generate_level(
                 let mut power = 0;
                 let mut attempt = 0;
                 while power == 0 || stat == CharacterStat::STR {
-                    power = rng.gen((-1 - depth.0 as i32)..(3 + depth.0 as i32));
+                    power = rng.gen((-1 - depth.0 as i32)..(5 + depth.0 as i32));
                     stat = rng.from(&stats);
                     attempt += 1;
                     if attempt > 10 {
@@ -487,7 +504,7 @@ pub fn generate_level(
                 let mut power = 0;
                 let mut attempt = 0;
                 while power == 0 || stat == CharacterStat::AGI {
-                    power = rng.gen((-2 - depth.0 as i32)..(2 + depth.0 as i32));
+                    power = rng.gen((-2 - depth.0 as i32)..(3 + depth.0 as i32));
                     stat = rng.from(&stats);
                     attempt += 1;
                     if attempt > 10 {
@@ -545,7 +562,7 @@ pub fn generate_level(
                 })
                 .insert((
                     Character {
-                        agility: 3,
+                        agility: 5,
                         ..Default::default()
                     },
                     RecoveryCounter::default(),
@@ -553,7 +570,7 @@ pub fn generate_level(
                     EquippedItems::default(),
                     PlayerMarker,
                     PendingActions::default(),
-                    Health::new(10),
+                    Health::new(18),
                     Focus(0),
                     TurnTaker,
                     PickableBundle::default(),
@@ -574,11 +591,13 @@ pub fn generate_level(
         match depth.0 {
             1 => {
                 for _ in 2..rng.gen(3..5) {
+                    let aggro = rng.percent(20u32);
                     make_orc(
                         &mut commands,
+                        &mut rng,
                         &grid,
                         places_for_interior.pop().unwrap_or_default(),
-                        rng.percent(10u32),
+                        aggro,
                     );
                 }
 
@@ -602,11 +621,13 @@ pub fn generate_level(
 
             2 => {
                 for _ in 2..rng.gen(2..5) {
+                    let aggro = rng.percent(20u32);
                     make_orc(
                         &mut commands,
+                        &mut rng,
                         &grid,
                         places_for_interior.pop().unwrap_or_default(),
-                        rng.percent(20u32),
+                        aggro,
                     );
                 }
 
@@ -676,11 +697,13 @@ pub fn generate_level(
                 }
 
                 for _ in 1..rng.gen(1..2) {
+                    let aggro = rng.percent(70u32);
                     make_orc(
                         &mut commands,
+                        &mut rng,
                         &grid,
                         places_for_interior.pop().unwrap_or_default(),
-                        rng.percent(70u32),
+                        aggro
                     );
                 }
 
@@ -695,6 +718,23 @@ pub fn generate_level(
 
             5 => {
                 for _ in 5..rng.gen(5..9) {
+                    make_bat(
+                        &mut commands,
+                        &mut rng,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
+                }
+
+                for _ in 5..rng.gen(5..9) {
+                    make_goblin(
+                        &mut commands,
+                        &grid,
+                        places_for_interior.pop().unwrap_or_default(),
+                    );
+                }
+
+                for _ in 1..rng.gen(3..5) {
                     make_acolyte(
                         &mut commands,
                         &mut rng,
@@ -703,7 +743,7 @@ pub fn generate_level(
                     );
                 }
 
-                for _ in 1..rng.gen(5..10) {
+                for _ in 1..rng.gen(3..4) {
                     make_thaumaturge(
                         &mut commands,
                         &mut rng,
@@ -716,50 +756,13 @@ pub fn generate_level(
                     &mut commands,
                     &mut rng,
                     &grid,
+                    depth.1 as i32,
                     places_for_interior.pop().unwrap_or_default(),
                 );
             }
 
             _ => {}
         }
-
-        // let char = Character::random(&mut rng);
-        // let index: usize = OLD_MAGE.into();
-
-        // commands
-        //     .spawn(WorldEntityBundle::new(
-        //         &grid,
-        //         format!("Mage {}", i).as_str(),
-        //         places.pop().unwrap_or_default(),
-        //         index + rng.gen(0..7) as usize,
-        //         true,
-        //         WorldEntityKind::NPC,
-        //         Some(char.get_strongest_stat_color(&magic)),
-        //     ))
-        //     .with_children(|f| {
-        //         f.spawn(((
-        //             SpriteSheetBundle {
-        //                 sprite: TextureAtlasSprite::new(0),
-        //                 texture_atlas: grid.atlas.clone_weak(),
-        //                 transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
-        //                 ..Default::default()
-        //             },
-        //             RenderLayers::layer(1),
-        //         ),));
-        //     })
-        //     .insert((
-        //         TurnTaker,
-        //         char,
-        //         Focus(0),
-        //         AIAgent::default(),
-        //         CarriedItems::default(),
-        //         EquippedItems::default(),
-        //         PendingActions::default(),
-        //         PickableBundle::default(),
-        //         RecoveryCounter::default(),
-        //         On::<Pointer<Click>>::send_event::<ShowEntityDetails>(),
-        //         Health::new(5),
-        //     ));
 
         turn_order_progress.send(TurnOrderProgressEvent);
     }
@@ -804,7 +807,7 @@ impl Plugin for SvarogProcgenPlugin {
         bevy.add_event::<ProcGenEvent>()
             .add_event::<RecalculateFOVEvent>()
             .insert_resource(MapRadius(800))
-            .insert_resource(LevelDepth(1))
+            .insert_resource(LevelDepth(1, 0))
             .insert_resource(ClearColor(Color::BLACK))
             .insert_resource(Msaa::Off)
             .add_systems(Update, on_new_fov_added.run_if(in_state(GameStates::Game)))

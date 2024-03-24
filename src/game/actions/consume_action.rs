@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    actions::a_destroy,
+    actions::{a_destroy, play_sfx},
     character::{Character, CharacterStat},
     grid::WorldEntity,
     health::Health,
@@ -86,6 +86,7 @@ impl Action for ConsumeAction {
             log.add(&message.join(" "));
         }
 
+        play_sfx("item_cast", world);
         vec![a_destroy(self.what)]
     }
 }

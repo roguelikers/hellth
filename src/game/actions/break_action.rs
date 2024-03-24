@@ -16,7 +16,6 @@ pub struct BreakAction {
 }
 
 pub fn a_break(what: Entity) -> AbstractAction {
-    println!("BREAK {:?}", what);
     Box::new(BreakAction { what })
 }
 
@@ -81,6 +80,7 @@ impl Action for BreakAction {
                             }
                         }
                         log.add(&message.join(" "));
+                        log.add("");
                     }
                 } else {
                     log.add(&format!("Err: NO HIT at {:?}!", item_world_entity.position));
@@ -95,12 +95,17 @@ impl Action for BreakAction {
                         return vec![];
                     };
 
+                    let mut damage = 1 + item.equip_stat_changes.len();
+                    if item.name.contains("Staff") {
+                        damage = 1;
+                    }
                     log.add(&format!(
                         "The {} hits {} for {} damage.",
                         format!("{:?}", item.item_type).to_lowercase(),
                         hit_entity.name,
-                        1 + item.equip_stat_changes.len()
+                        damage
                     ));
+                    log.add("");
 
                     if let Ok(mut health) = healths.get_mut(*e) {
                         let diff = health.normal_damage(1 + item.equip_stat_changes.len());

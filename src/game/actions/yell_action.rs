@@ -1,5 +1,3 @@
-use std::{thread, time::Duration};
-
 use bevy::prelude::*;
 
 use crate::game::{character::CharacterStat, grid::WorldEntity, history::HistoryLog};
@@ -27,6 +25,7 @@ impl Action for YellAction {
             .unwrap_or("someone".to_string());
         if let Some(mut log) = world.get_resource_mut::<HistoryLog>() {
             log.add(&format!("You hear {} yell!", name));
+            log.add("");
         }
         vec![]
     }

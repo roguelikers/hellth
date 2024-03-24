@@ -71,6 +71,7 @@ impl Action for HitAction {
                 log.add(&format!("{} moves out of the way.", world_target.name));
             }
 
+            play_sfx("gameplay_surprise", world);
             return vec![];
         }
 
@@ -86,7 +87,7 @@ impl Action for HitAction {
             damage_amount,
             world_target.name.to_lowercase()
         ));
-
+        log.add("");
         let diff = target_health.normal_damage(damage_amount as usize);
         for (stat, val) in diff {
             target_character[stat] += val;
@@ -97,15 +98,16 @@ impl Action for HitAction {
         }
 
         if player_query.contains(self.target) {
-            shake_query.single_mut().add_trauma(0.05);
-        } else {
-            shake_query.single_mut().add_trauma(0.02);
+            shake_query.single_mut().add_trauma(rng.gen(2..5) as f32 * 0.01);
         }
 
-        if target_health.hitpoints.is_empty() {
+        let result = if target_health.hitpoints.is_empty() {
             vec![a_death(self.target)]
         } else {
             vec![]
-        }
+        };
+
+        play_sfx("gameplay_hit", world);
+        result
     }
 }

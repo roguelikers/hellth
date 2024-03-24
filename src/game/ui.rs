@@ -458,7 +458,9 @@ fn show_inventory(
                     StyleColor::Text,
                     [207. / 255., 198. / 255., 184. / 255., 1.0],
                 );
-                ui.text_wrapped(format!("  {:?}", item));
+                if item.item_type != ItemType::Scroll {
+                    ui.text_wrapped(format!("  {:?}", item));
+                }
                 c.pop();
 
                 if selected_item {
@@ -471,6 +473,7 @@ fn show_inventory(
                             ItemActions::Throw => Some("[T]hrow"),
                             ItemActions::Consume => Some("[C]onsume"),
                             ItemActions::Examine => Some("E[x]amine"),
+                            ItemActions::Focus => Some("[F]ocus"),
                             _ => None,
                         };
 
@@ -633,13 +636,13 @@ fn show_exit(
                 ui.set_cursor_pos([(600.0 - w) * 0.5, 40.0]);
                 ui.text_wrapped("You will lose all progress if you quit. Do you want to proceed?");
 
-                let [w, _] = ui.calc_text_size("[Return/Enter] Yes");
+                let [w, _] = ui.calc_text_size("[Enter/Y] Yes");
                 ui.set_cursor_pos([200.0 - w * 0.5, 150.0]);
-                ui.text("[Return/Enter] Yes");
+                ui.text("[Enter/Y] Yes");
 
-                let [w, _] = ui.calc_text_size("[Escape again] No");
+                let [w, _] = ui.calc_text_size("[Escape/N] No");
                 ui.set_cursor_pos([400.0 - w * 0.5, 150.0]);
-                ui.text("[Escape again] No");
+                ui.text("[Escape/N] No");
             });
     }
 }
@@ -765,6 +768,35 @@ fn show_dead_screen(
     }
 }
 
+fn show_writ(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerState>, ach: Res<Achievements>) {
+    let ui = context.ui();
+
+    if let PlayerState::Reading(writ) = *player_state {
+        if let Some(message) = ach.messages.last() {
+            let [w, _] = ui.io().display_size;
+
+            ui.window("Tip")
+            .position_pivot([0.5, 0.0])
+            .position([w / 2.0, 100.0], imgui::Condition::Always)
+            .size([600.0, 370.0], imgui::Condition::Always)
+            .resizable(false)
+            .collapsible(false)
+            .no_decoration()
+            .bg_alpha(1.0)
+            .build(|| {
+                let [w, _] = ui.calc_text_size_with_opts(message, false, 300.0);
+                ui.set_cursor_pos([(600.0 - w) * 0.5 - 50.0, 150.0]);
+                ui.set_next_item_width(300.0);
+                ui.text_wrapped(message);
+
+                let [w, _] = ui.calc_text_size("Press SPACE to continue.");
+                ui.set_cursor_pos([(600.0 - w) * 0.5, 350.0]);
+                ui.text("Press SPACE to continue.");
+            });
+        }
+    }
+}
+
 fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerState>) {
     let ui = context.ui();
 
@@ -787,24 +819,21 @@ fn show_help(mut context: NonSendMut<ImguiContext>, player_state: Res<PlayerStat
                 ui.text("Hark thee!");
                 ui.spacing();
                 let mut message = vec!["You are the latest in a long line of acolytes sent to venture into the Ruins of the World in the hopes of slaying the Healer.".to_string()];                
-                message.push("Let not yourself be fooled by that name -- this person brought ruin; he remade the world by collapsing the Spiritual Divide.".to_string());
-                message.push("Going down doesn't require only time, but sacrifice...".to_string());
+                message.push("Going down doesn't require only time, but sacrifice. If at least one of your stats isn't at 9, you will lose some health to the Healer...".to_string());
+                message.push("You choose when to descend. Stats are enscribed into your health bar, watch it closely. Don't waste items.".to_string());
                 ui.text_wrapped(message.join(" "));
                 ui.text_wrapped("Staircases going down don't exist. Consume. Grow. Sacrifice. Find a way.");
                 ui.separator();
                 ui.text_wrapped("Help (this screen): H");
                 ui.text_wrapped("Movement: ASDW + QEZC (diagonal)");
                 ui.text_wrapped("Make Sacrifice (attempt to descend): M");
-                ui.text_wrapped("Focus Thaumaturgy: F");
+                ui.text_wrapped("Focus Thaumaturgy (affect other health points with consumed bones): F");
                 ui.text_wrapped("Wait Turn: X");
                 ui.text_wrapped("Cancel: Escape");
-                ui.text_wrapped("Pickup: Space");
+                ui.text_wrapped("Pickup: Space or G");
                 ui.text_wrapped("Items: 1-9 to start interaction");
+                ui.text_wrapped("Volume: -/+");
                 ui.separator();
-                let mut message = vec!["This challenge will see you use and consume artifacts that inflict upon your health strange glyphs to affect your state.".to_string()];
-                message.push("It shall change how you perceive things. It shall make you wonder about your choices. Remember the shape of your soul and track it carefully.".to_string());
-                message.push("Remember that in this place NINE is the strength with which devotion accepts a sacrifice. Be wary of what you ask for. Remember it in your BONES.".to_string());
-                ui.text_wrapped(message.join(" "));
                 ui.spacing();
 
                 let [w, _] = ui.calc_text_size("Press SPACE to continue.");
@@ -828,7 +857,7 @@ fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
         .build(|| {
             ui.text("History");
             ui.separator();
-            for line in log.0.iter().rev() {
+            for line in log.0.iter() {
                 let c = ui.push_style_color(
                     StyleColor::Text,
                     [207. / 255., 198. / 255., 184. / 255., 1.0],
@@ -836,6 +865,7 @@ fn show_log(mut context: NonSendMut<ImguiContext>, log: Res<HistoryLog>) {
                 ui.text_wrapped(line);
                 c.pop();
             }
+            ui.set_scroll_here_y_with_ratio(1.0);
         });
 }
 
@@ -946,7 +976,7 @@ pub fn show_progress_status(mut context: NonSendMut<ImguiContext>, level_depth: 
     ui.window("PROGRESS")
         .position_pivot([1.0, 1.0])
         .position([width - 20.0, height - 20.0], imgui::Condition::Always)
-        .size([100.0, 50.0], imgui::Condition::Always)
+        .size([100.0, 80.0], imgui::Condition::Always)
         .resizable(false)
         .collapsible(false)
         .no_decoration()
@@ -954,6 +984,8 @@ pub fn show_progress_status(mut context: NonSendMut<ImguiContext>, level_depth: 
         .build(|| {
             ui.text(format!("Depth: {}", level_depth.0));
             ui.text(format!("Turns: {}", turn_counter.0));
+            ui.separator();
+            ui.text("H: Help");
         });
 }
 
@@ -977,6 +1009,7 @@ impl Plugin for SvarogUIPlugin {
                 draw_health_settings,
                 show_progress_status,
                 show_help,
+                show_writ,
             )
                 .chain()
                 .run_if(in_state(GameStates::Game)),

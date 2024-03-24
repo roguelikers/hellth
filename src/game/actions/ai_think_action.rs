@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::ai::{AbstractAIBehaviour, PendingActions};
+use crate::game::ai::{get_player, AbstractAIBehaviour, PendingActions};
 
 use super::*;
 
@@ -20,11 +20,16 @@ impl Action for AIThinkAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
-        let planned_actions = self.behaviour.do_thinking(self.entity, world);
-        if let Some(mut plan) = world.get_mut::<PendingActions>(self.entity) {
-            plan.0 = VecDeque::from_iter(planned_actions);
-        }
+        if let Some(_) = get_player(world) {
 
-        vec![]
+            let planned_actions = self.behaviour.do_thinking(self.entity, world);
+            if let Some(mut plan) = world.get_mut::<PendingActions>(self.entity) {
+                plan.0 = VecDeque::from_iter(planned_actions);
+            }
+
+            vec![]
+        } else {
+            vec![a_wait()]
+        }
     }
 }

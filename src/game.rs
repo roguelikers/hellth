@@ -3,11 +3,7 @@ use bevy_asset_loader::prelude::*;
 use bevy_trauma_shake::TraumaPlugin;
 
 use self::{
-    actions::SvarogActionsPlugin, ai::SvarogAIPlugin, camera::SvarogCameraPlugin,
-    feel::SvarogFeelPlugin, grid::SvarogGridPlugin, history::SvarogHistoryPlugin,
-    inventory::SvarogInventoryPlugin, loading::SvarogLoadingPlugin, magic::SvarogMagicPlugin,
-    player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin, turns::SvarogTurnPlugin,
-    ui::SvarogUIPlugin, window::SvarogWindowPlugins,
+    actions::SvarogActionsPlugin, ai::SvarogAIPlugin, camera::SvarogCameraPlugin, feel::SvarogFeelPlugin, grid::SvarogGridPlugin, history::SvarogHistoryPlugin, inventory::SvarogInventoryPlugin, loading::SvarogLoadingPlugin, magic::SvarogMagicPlugin, music::SvarogMusicPlugin, player::SvarogPlayerPlugin, procgen::SvarogProcgenPlugin, turns::SvarogTurnPlugin, ui::SvarogUIPlugin, window::SvarogWindowPlugins
 };
 
 pub mod actions;
@@ -31,6 +27,7 @@ pub mod sprites;
 pub mod turns;
 pub mod ui;
 pub mod window;
+pub mod music;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash, Default, States)]
 pub enum GameStates {
@@ -76,6 +73,7 @@ impl Plugin for SvarogGamePlugin {
             .add_plugins(SvarogAIPlugin)
             .add_plugins(SvarogInventoryPlugin)
             .add_plugins(SvarogUIPlugin)
+            .add_plugins(SvarogMusicPlugin)
             .add_plugins(TraumaPlugin);
     }
 }

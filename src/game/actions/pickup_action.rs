@@ -1,11 +1,7 @@
 use bevy::{ecs::system::SystemState, prelude::*};
 
 use crate::game::{
-    character::CharacterStat,
-    grid::WorldEntity,
-    history::HistoryLog,
-    inventory::{CarriedItems, CarriedMarker, Item},
-    procgen::ClearLevel,
+    actions::play_sfx, character::CharacterStat, grid::WorldEntity, history::HistoryLog, inventory::{CarriedItems, CarriedMarker, Item}, procgen::ClearLevel
 };
 
 use super::{AbstractAction, Action, ActionResult};
@@ -26,6 +22,7 @@ impl Action for PickupAction {
     }
 
     fn do_action(&self, world: &mut World) -> ActionResult {
+        let mut pickup_success = false;
         let mut clear_items = vec![];
 
         let mut read_system_state = SystemState::<(
@@ -55,13 +52,16 @@ impl Action for PickupAction {
                 mark_carried.push(*item_entity);
 
                 if person_entity.is_player {
+                    pickup_success = true;
                     log.add(&format!("Picked up {}.", item.name));
+                    log.add("");
                     if clear.contains(*item_entity) {
                         clear_items.push(*item_entity);
                     }
                 }
             } else {
                 log.add("No more space for items. Drop something first.");
+                log.add("");
             }
         }
 
@@ -75,6 +75,10 @@ impl Action for PickupAction {
             for item in clear_items {
                 world.entity_mut(item).remove::<ClearLevel>();
             }
+        }
+
+        if pickup_success {
+            play_sfx("item_pickup", world);
         }
 
         vec![]

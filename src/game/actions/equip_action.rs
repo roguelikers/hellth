@@ -46,6 +46,11 @@ impl Action for EquipAction {
         if let Ok((mut character, world_entity, carried, mut equipped)) =
             world_entity_query.get_mut(self.who)
         {
+            if equipped.0.len() >= 2 {
+                log.add("You try to wield three weapons, but it's simply too much... You're wasting time. Remember your training.");
+                return vec![];
+            }
+
             if carried.0.iter().any(|i| *i == self.what)
                 && !equipped.0.iter().any(|i| *i == self.what)
             {
@@ -82,6 +87,7 @@ impl Action for EquipAction {
                 }
 
                 log.add(&message.join(" "));
+                log.add("");
             }
         }
 

@@ -54,6 +54,7 @@ impl Action for UnequipAction {
                     }
 
                     log.add(&format!("{} unequipped {}.", world_entity.name, item.name));
+                    log.add("");
                 }
             }
         }

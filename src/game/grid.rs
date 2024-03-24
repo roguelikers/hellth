@@ -36,7 +36,7 @@ use super::procgen::ClearLevel;
 #[derive(Component)]
 pub struct WorldEntityMarker;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct WorldEntity {
     pub name: String,
     pub position: IVec2,

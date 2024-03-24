@@ -19,6 +19,10 @@ pub const FOREST1: Tile = Tile(1, 0);
 pub const FOREST2: Tile = Tile(1, 1);
 pub const FOREST3: Tile = Tile(1, 2);
 pub const FOREST4: Tile = Tile(1, 3);
+pub const FOREST5: Tile = Tile(2, 0);
+pub const FOREST6: Tile = Tile(2, 1);
+pub const FOREST7: Tile = Tile(2, 6);
+pub const FOREST8: Tile = Tile(6, 20);
 
 pub const WALL1: Tile = Tile(13, 0);
 pub const WALL2: Tile = Tile(11, 1);
